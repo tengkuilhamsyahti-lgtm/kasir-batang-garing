@@ -31,6 +31,15 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Rekap shift ikut dikirim ke sheet `Shift` di spreadsheet dan tampil di dashboard pemilik. Kalau Apps Script sudah terpasang sebelumnya, tempel ulang `apps-script/Code.gs` lalu **Deploy → Manage deployments → Edit → New version**.
 - Password disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
 
+## Meja & pesanan belum dibayar
+
+- **Pilih meja:** setiap pesanan memakai meja (atau *Bawa pulang*). Ketuk tombol **Pilih meja** di atas daftar pesanan; aplikasi juga memintanya otomatis saat Simpan atau Bayar. Nama pemesan boleh diisi. Jumlah meja diatur di Atur → Toko → **Jumlah meja** (default 12).
+- **Simpan (bayar nanti):** tombol **Simpan** menyimpan pesanan tanpa dibayar. Pesanan muncul di tombol **Belum bayar** (merah, dengan jumlahnya) di layar kasir, ditandai **BELUM BAYAR**, dan mejanya tampil merah di pilihan meja.
+- **Tambah pesanan:** pilih meja yang merah untuk menambahkan menu ke tagihan meja itu, atau buka dari daftar Belum bayar → **Buka / tambah**, lalu **Simpan ubahan**.
+- **Bayar:** dari daftar Belum bayar → **Bayar**. Setelah dibayar, tanda BELUM BAYAR hilang dan pesanan keluar dari daftar. Nomor meja dan nama pemesan tercetak di struk.
+- **Cetak tagihan:** mencetak tagihan sementara untuk diantar ke meja. **Batalkan** hanya bisa dilakukan pemilik.
+- Saat tutup shift, aplikasi mengingatkan kalau masih ada pesanan belum dibayar dan menyebutkannya di laporan WhatsApp.
+
 ## Stok bahan & HPP
 
 - **Tambah bahan** (pemilik): tab **Stok → + Tambah bahan**. Isi nama, satuan (gram, ml, pcs), harga beli per kemasan dan isi kemasannya (misalnya Rp180.000 untuk 1000 gram), stok sekarang, dan batas stok menipis. Harga per satuan dihitung otomatis.

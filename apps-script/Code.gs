@@ -27,7 +27,7 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    const trx = sheet_('Transaksi', ['Waktu', 'Tanggal', 'No Struk', 'Toko', 'Metode', 'Subtotal', 'Pajak', 'Total', 'Dibayar', 'Kembali', 'Jumlah Item', 'Kasir', 'HPP', 'Laba kotor']);
+    const trx = sheet_('Transaksi', ['Waktu', 'Tanggal', 'No Struk', 'Toko', 'Metode', 'Subtotal', 'Pajak', 'Total', 'Dibayar', 'Kembali', 'Jumlah Item', 'Kasir', 'HPP', 'Laba kotor', 'Meja', 'Nama pemesan']);
     const det = sheet_('Detail Item', ['Tanggal', 'No Struk', 'Menu', 'Qty', 'Harga', 'Subtotal', 'HPP satuan', 'Total HPP']);
     const ada = new Set(trx.getLastRow() > 1 ? trx.getRange(2, 3, trx.getLastRow() - 1, 1).getValues().flat().map(String) : []);
     const rowsT = [], rowsD = [];
@@ -35,7 +35,7 @@ function doPost(e) {
       if (ada.has(String(t.no))) return; // cegah dobel kalau dikirim ulang
       const d = new Date(t.time);
       const tgl = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '', t.hpp || 0, t.sub - (t.hpp || 0)]);
+      rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '', t.hpp || 0, t.sub - (t.hpp || 0), t.table === 'TA' ? 'Bawa pulang' : (t.table || ''), t.customer || '']);
       t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price, i.hpp || 0, (i.hpp || 0) * i.qty]));
     });
     if (rowsT.length) trx.getRange(trx.getLastRow() + 1, 1, rowsT.length, rowsT[0].length).setValues(rowsT);
