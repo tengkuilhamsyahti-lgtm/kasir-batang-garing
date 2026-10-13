@@ -69,6 +69,7 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Perangkat: tablet Android, buka lewat **Chrome**, lalu menu ⋮ → *Tambahkan ke layar utama*.
 - Printer: Bluetooth mini 58 mm. Pasangkan dulu printer di pengaturan Bluetooth tablet (PIN biasanya 0000 atau 1234), lalu di aplikasi ketuk **Sambung printer** dan pilih printernya. Chrome meminta ini sekali setiap aplikasi dibuka ulang.
 - Satu outlet: satu spreadsheet dan satu link dashboard pemilik.
+- Ukuran tampilan: di tablet aplikasi otomatis memperbesar teks, tombol, dan kartu menu. Ubah di Atur → Toko → **Ukuran tampilan** (Normal sampai Sangat besar). Di layar yang sempit, ukuran dibatasi supaya kartu menu dan pesanan tetap muat.
 
 ## Catatan
 

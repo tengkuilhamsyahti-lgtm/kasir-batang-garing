@@ -194,6 +194,7 @@ td.r,th.r{text-align:right}
 @media (max-width:860px){#meBtn{margin-top:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
+  html{zoom:1!important}
   body *{visibility:hidden}
   #printArea,#printArea *{visibility:visible}
   #printArea{position:absolute;left:0;top:0;width:58mm;font-family:monospace;font-size:11px;white-space:pre;color:#000}
@@ -325,6 +326,7 @@ td.r,th.r{text-align:right}
           <div class="field"><label for="sAddr">Alamat / No. HP di struk</label><input id="sAddr"></div>
           <div class="field"><label for="sTax">Pajak / PB1 (%)</label><input id="sTax" type="number" min="0" max="20" step="0.5"></div>
           <div class="field"><label for="sFooter">Pesan bawah struk</label><input id="sFooter"></div>
+          <div class="field"><label for="sUi">Ukuran tampilan</label><select id="sUi"><option value="auto">Otomatis (besar di tablet)</option><option value="1">Normal</option><option value="1.15">Agak besar</option><option value="1.3">Besar</option><option value="1.45">Sangat besar</option></select></div>
         </div>
       </div>
       <div class="panel" style="display:grid;gap:12px">
@@ -387,6 +389,14 @@ const saveBahan=()=>store.set("bahan",bahan),saveMoves=()=>store.set("moves",mov
 let trx=store.get("trx",[]);
 let cfg=Object.assign({name:"Batang Garing Coffee",addr:"",tax:0,footer:"Terima kasih sudah ngopi di Batang Garing!",paper:32,autoPrint:1,sheet:"",key:"",wa:""},store.get("cfg",{}));
 let cart=[];let cat="Semua";let q="";
+// Ukuran tampilan: perbesar semua elemen di tablet tanpa mengubah tata letak.
+function applyZoom(){
+  const tablet=matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)>=600;
+  let z=cfg.ui&&cfg.ui!=="auto"?+cfg.ui:(tablet?1.3:1);
+  if(innerWidth>860)z=Math.min(z,innerWidth/900);
+  document.documentElement.style.zoom=Math.max(1,Math.round(z*100)/100);
+}
+applyZoom();addEventListener("resize",applyZoom);
 const saveMenu=()=>store.set("menu",menu),saveTrx=()=>store.set("trx",trx),saveCfg=()=>store.set("cfg",cfg);
 
 const HUES=["#8a5a32","#2f7d5b","#c8501e","#3a5bd9","#8a3fb8","#1c7f8c"];
@@ -630,7 +640,7 @@ function renderReport(){
 }
 
 // ---------- pengaturan ----------
-function fillSettings(){renderUsers();$("#sIdle").value=String(cfg.idle||5);$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
+function fillSettings(){renderUsers();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
 $("#saveSettings").onclick=()=>{cfg={...cfg,name:$("#sName").value.trim()||"Batang Garing Coffee",addr:$("#sAddr").value.trim(),tax:+$("#sTax").value||0,footer:$("#sFooter").value,paper:+$("#sPaper").value,autoPrint:+$("#sAutoPrint").value,sheet:$("#sSheet").value.trim(),key:$("#sKey").value.trim()};saveCfg();fillSettings();toast("Pengaturan disimpan");syncPending(false)};
 $("#openDash").onclick=()=>{if(!cfg.sheet)return toast("Isi dulu URL Web App");const u=cfg.sheet+"?key="+encodeURIComponent(cfg.key);
   modal(`<h3>Dashboard pemilik</h3><p class="hint">Buka link ini di HP pemilik dan simpan sebagai bookmark. Isinya omzet hari ini dan transaksi terakhir, diperbarui otomatis.</p><div class="receipt" style="white-space:normal;word-break:break-all;max-width:none">${esc(u)}</div><div class="row"><button class="btn ghost" id="cpy">Salin link</button><a class="btn primary" style="text-align:center;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Buka</a></div>`);
@@ -640,6 +650,7 @@ $("#importMenu").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().th
     menu=d.map(x=>({id:x.id||uid(),name:x.name,cat:x.cat||"Lainnya",price:+x.price,on:x.on!==false,recipe:Array.isArray(x.recipe)?x.recipe:[]}));saveMenu();toast(`${menu.length} menu dimuat`);renderPos()}).catch(()=>toast("File tidak dikenali"))};
 $("#saveWa").onclick=()=>{const v=$("#sWa").value.trim();if(v&&!waNum(v))return toast("Nomor WhatsApp tidak valid");cfg.wa=v;saveCfg();fillSettings();toast(v?"Nomor WhatsApp disimpan":"Laporan WhatsApp dimatikan")};
 $("#testWa").onclick=()=>{const n=waNum($("#sWa").value);if(!n)return toast("Isi nomor WhatsApp dulu");window.open(waLink(n,`Tes laporan kasir ${cfg.name}. Kalau pesan ini sampai, laporan tutup shift akan dikirim ke nomor ini.`),"_blank","noopener")};
+$("#sUi").onchange=()=>{cfg.ui=$("#sUi").value;saveCfg();applyZoom();toast("Ukuran tampilan disimpan")};
 $("#sIdle").onchange=()=>{cfg.idle=+$("#sIdle").value;saveCfg();resetIdle();toast("Kunci otomatis disimpan")};
 function renderUsers(){
   $("#userRows").innerHTML=users.map(u=>`<tr><td><b>${esc(u.name)}</b>${me&&u.id===me.id?" (Anda)":""}</td><td>${u.role==="owner"?"Pemilik":"Kasir"}</td>
