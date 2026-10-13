@@ -20,6 +20,17 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 5. **Pantau jarak jauh**: pemilik membuka link dashboard dari HP (omzet hari ini, menu terlaris, transaksi terakhir; diperbarui tiap menit).
 6. **Spreadsheet**: setiap transaksi masuk ke sheet `Transaksi` dan `Detail Item`, dengan rekap `Rekap Harian` dan `Rekap Menu`.
 
+## Login kasir & shift
+
+- **Pertama kali dibuka:** buat akun pemilik (nama + password). Aplikasi lalu menampilkan **kode pemulihan** satu kali. Catat kode itu; hanya kode itu yang bisa mengatur ulang password pemilik kalau lupa.
+- **Tambah kasir:** Atur → Pengguna & keamanan → **+ Tambah kasir**. Setiap kasir punya password sendiri.
+- **Mulai shift:** kasir memilih namanya, memasukkan password, lalu mengisi modal awal di laci. Pembayaran hanya bisa diterima saat ada shift terbuka. Nama kasir tercetak di struk.
+- **Tutup shift:** ketuk nama di pojok kiri bawah → **Tutup shift**. Kasir menghitung uang di laci tanpa melihat angka sistem, lalu aplikasi menampilkan selisih kas dan bisa mencetak rekap shift.
+- **Hak akses:** kasir hanya bisa membuka Kasir dan Laporan. Menu, Pengaturan, dan Riwayat shift hanya untuk pemilik.
+- **Kunci otomatis:** layar terkunci setelah tidak dipakai (default 5 menit, bisa diatur). Salah password 5 kali membuat login terkunci 1 menit.
+- Rekap shift ikut dikirim ke sheet `Shift` di spreadsheet dan tampil di dashboard pemilik. Kalau Apps Script sudah terpasang sebelumnya, tempel ulang `apps-script/Code.gs` lalu **Deploy → Manage deployments → Edit → New version**.
+- Password disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
+
 ## Menyambungkan Google Spreadsheet (sekali saja, ±5 menit)
 
 1. Buat Google Spreadsheet baru, misalnya "Penjualan Batang Garing Coffee".

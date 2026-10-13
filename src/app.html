@@ -153,6 +153,28 @@ td.r,th.r{text-align:right}
   .page{padding:16px 16px 90px}
 }
 @media (min-width:861px){.cart .close-cart{display:none}}
+/* layar login & shift */
+.lock{position:fixed;inset:0;z-index:30;background:var(--bg);display:grid;place-items:center;padding:24px 16px;overflow-y:auto}
+.lock-card{width:min(460px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:grid;gap:16px}
+.lock-brand{display:flex;align-items:center;gap:12px}
+.lock-brand h2{margin:0;font-size:20px;letter-spacing:-.02em}
+.users{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.user-btn{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 8px;display:grid;justify-items:center;gap:6px;font-weight:700;font-size:14px}
+.user-btn small{font-weight:500;color:var(--muted);font-size:12px}
+.user-btn[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--brand);color:var(--brand-ink);font-weight:800;font-size:15px}
+.avatar.sm{width:28px;height:28px;font-size:11px}
+.err{color:var(--chili);font-size:13px;font-weight:600;min-height:18px;margin:0}
+.banner{background:var(--brand-soft);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:13px;padding:4px;justify-self:center}
+.code{font-family:var(--f-mono);font-size:24px;font-weight:600;letter-spacing:.12em;text-align:center;background:var(--surface-2);border-radius:12px;padding:14px}
+.recap{display:grid;gap:6px;font-size:14px}
+.recap div{display:flex;justify-content:space-between;gap:12px}
+.recap span:last-child{font-family:var(--f-mono)}
+.diff-ok{color:var(--ok);font-weight:700}
+.diff-bad{color:var(--chili);font-weight:700}
+#meBtn{margin-top:auto}
+@media (max-width:860px){#meBtn{margin-top:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
   body *{visibility:hidden}
@@ -169,6 +191,7 @@ td.r,th.r{text-align:right}
     <button class="nav" data-view="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Menu</button>
     <button class="nav" data-view="report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Laporan</button>
     <button class="nav" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Atur</button>
+    <button class="nav" id="meBtn" aria-label="Akun dan shift"><span class="avatar sm" id="meAv">?</span><span id="meName">Shift</span></button>
   </nav>
 
   <!-- KASIR -->
@@ -232,6 +255,10 @@ td.r,th.r{text-align:right}
         <thead><tr><th>No. Struk</th><th>Jam</th><th>Bayar</th><th class="r">Total</th><th>Spreadsheet</th><th></th></tr></thead>
         <tbody id="trxRows"></tbody>
       </table></div>
+      <div class="panel table-wrap" id="shiftPanel"><h3 style="margin:0 0 12px;font-size:16px">Riwayat shift</h3><table>
+        <thead><tr><th>Kasir</th><th>Buka</th><th>Tutup</th><th class="r">Modal</th><th class="r">Seharusnya</th><th class="r">Dihitung</th><th class="r">Selisih</th></tr></thead>
+        <tbody id="shiftRows"></tbody>
+      </table></div>
     </div></div>
   </section>
 
@@ -266,6 +293,15 @@ td.r,th.r{text-align:right}
         <div class="row"><button class="btn primary" id="saveSettings">Simpan pengaturan</button><button class="btn ghost" id="openDash">Buka dashboard pemilik</button></div>
       </div>
       <div class="panel" style="display:grid;gap:12px">
+        <h3 style="margin:0;font-size:16px">Pengguna & keamanan</h3>
+        <p class="hint">Setiap kasir masuk dengan password sendiri dan membuka shift dengan modal awal. Menu, laporan shift, dan pengaturan hanya bisa dibuka pemilik.</p>
+        <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Peran</th><th>Status</th><th></th></tr></thead><tbody id="userRows"></tbody></table></div>
+        <div class="form-grid">
+          <div class="field"><label for="sIdle">Kunci layar otomatis</label><select id="sIdle"><option value="2">Setelah 2 menit tidak dipakai</option><option value="5">Setelah 5 menit</option><option value="10">Setelah 10 menit</option><option value="30">Setelah 30 menit</option></select></div>
+        </div>
+        <div class="row"><button class="btn primary" id="addUser">+ Tambah kasir</button></div>
+      </div>
+      <div class="panel" style="display:grid;gap:12px">
         <h3 style="margin:0;font-size:16px">Data</h3>
         <p class="hint">Cadangkan menu ke file, atau muat dari file cadangan di perangkat lain.</p>
         <div class="row"><button class="btn ghost" id="exportMenu">Salin data menu</button><label class="btn ghost" style="text-align:center">Muat file menu<input type="file" id="importMenu" accept=".json" hidden></label><button class="btn danger" id="resetAll">Hapus semua transaksi</button></div>
@@ -275,6 +311,7 @@ td.r,th.r{text-align:right}
 </div>
 
 <div id="modal"></div>
+<div id="lock" class="lock" hidden></div>
 <div id="printArea" aria-hidden="true"></div>
 <div id="toastHost"></div>
 
@@ -299,9 +336,11 @@ const initials=s=>s.split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase();
 function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;$("#toastHost").append(t);setTimeout(()=>t.remove(),2600)}
 
 // ---------- navigasi ----------
-document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>show(b.dataset.view));
+document.querySelectorAll(".nav[data-view]").forEach(b=>b.onclick=()=>show(b.dataset.view));
+const OWNER_VIEWS=["menu","settings"];
 function show(v){
-  document.querySelectorAll(".nav").forEach(b=>{if(b.dataset.view===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  if(OWNER_VIEWS.includes(v)&&(!me||me.role!=="owner")){toast("Hanya pemilik yang bisa membuka halaman ini");v="pos"}
+  document.querySelectorAll(".nav[data-view]").forEach(b=>{if(b.dataset.view===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   ["pos","menu","report","settings"].forEach(k=>$("#v-"+k).hidden=k!==v);
   if(v==="menu")renderMenu(); if(v==="report")renderReport(); if(v==="settings")fillSettings(); if(v==="pos")renderPos();
 }
@@ -362,7 +401,9 @@ $("#payBtn").onclick=()=>{
   document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{method=b.dataset.m;document.querySelectorAll("[data-m]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#cashBox").hidden=method!=="Tunai";upd()});
   upd();
   $("#confirmPay").onclick=()=>{
-    const tr={no:nextNo(),time:new Date().toISOString(),items:cart.map(l=>({...l})),sub:t.sub,tax:t.tax,total:t.total,method,paid:method==="Tunai"?paid:t.total,change:method==="Tunai"?paid-t.total:0,synced:false};
+    const sh=openShift();
+    if(!sh||!me){closeModal();return toast("Buka shift dulu sebelum menerima pembayaran")}
+    const tr={cashier:me.name,cashierId:me.id,shift:sh.id,no:nextNo(),time:new Date().toISOString(),items:cart.map(l=>({...l})),sub:t.sub,tax:t.tax,total:t.total,method,paid:method==="Tunai"?paid:t.total,change:method==="Tunai"?paid-t.total:0,synced:false};
     trx.push(tr);saveTrx();cart=[];$("#cart").classList.remove("open");renderPos();
     syncPending();
     showReceipt(tr,true);
@@ -383,7 +424,7 @@ function receiptText(tr){
   const d=new Date(tr.time);
   const out=[center(cfg.name),...(cfg.addr?wrap(cfg.addr,W).map(center):[]),line,
     lr("No: "+tr.no,d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})),
-    d.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}),line];
+    d.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}),...(tr.cashier?["Kasir: "+tr.cashier]:[]),line];
   tr.items.forEach(i=>{out.push(...wrap(i.name,W));out.push(lr(`  ${i.qty} x ${n(i.price)}`,n(i.qty*i.price)))});
   out.push(line,lr("Subtotal",n(tr.sub)));
   if(tr.tax)out.push(lr(`Pajak ${cfg.tax}%`,n(tr.tax)));
@@ -406,9 +447,9 @@ function showReceipt(tr,fresh){
 
 // ---------- printer ESC/POS (USB / Bluetooth) ----------
 let printer=null; // {write(bytes), name}
-function escpos(tr){
+function escpos(lines){
   const enc=s=>Array.from(s.normalize("NFD").replace(/[̀-ͯ]/g,""),c=>{const k=c.charCodeAt(0);return k<128?k:63});
-  const lines=receiptText(tr);const b=[0x1b,0x40];
+  const b=[0x1b,0x40];
   lines.forEach((l,i)=>{
     if(i===0)b.push(0x1b,0x61,1,0x1b,0x45,1,0x1d,0x21,0x01); // tengah, tebal, tinggi 2x
     b.push(...enc(l.trim()&&i===0?l.trim():l),0x0a);
@@ -417,9 +458,10 @@ function escpos(tr){
   b.push(0x0a,0x0a,0x0a,0x1d,0x56,0x42,0x00); // potong kertas (kalau printer punya cutter)
   return new Uint8Array(b);
 }
-async function printReceipt(tr){
-  if(printer){try{await printer.write(escpos(tr));toast("Struk dicetak");return}catch(e){toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
-  $("#printArea").textContent=receiptText(tr).join("\n");
+const printReceipt=tr=>printLines(receiptText(tr));
+async function printLines(lines){
+  if(printer){try{await printer.write(escpos(lines));toast("Struk dicetak");return}catch(e){toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
+  $("#printArea").textContent=lines.join("\n");
   try{window.print()}catch(e){}
 }
 async function connectUsb(){
@@ -448,11 +490,12 @@ $("#testPrint").onclick=()=>printReceipt({no:"TES-001",time:new Date().toISOStri
 // ---------- Google Spreadsheet ----------
 async function syncPending(manual){
   const pend=trx.filter(t=>!t.synced&&!t.sample);
+  const pendS=shifts.filter(s=>s.end&&!s.synced);
   if(!cfg.sheet){if(manual)toast("Isi dulu URL Web App di Pengaturan");return}
-  if(!pend.length){if(manual)toast("Semua transaksi sudah terkirim");return}
+  if(!pend.length&&!pendS.length){if(manual)toast("Semua transaksi sudah terkirim");return}
   try{
-    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend})});
-    pend.forEach(t=>t.synced=true);saveTrx();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
+    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS})});
+    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
   }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
   if(!$("#v-report").hidden)renderReport();
 }
@@ -501,19 +544,182 @@ function renderReport(){
   $("#trxRows").innerHTML=list.slice().reverse().map(t=>`<tr><td class="num">${t.no}</td><td class="num">${new Date(t.time).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</td><td>${t.method}</td><td class="r num">${rp(t.total)}</td>
     <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><button class="btn ghost sm" data-r="${t.no}">Struk</button></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
   $("#trxRows").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>showReceipt(trx.find(t=>t.no===b.dataset.r)));
+  const isOwner=me&&me.role==="owner";$("#shiftPanel").hidden=!isOwner;
+  if(isOwner){const hm=x=>x?new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Berjalan";
+    $("#shiftRows").innerHTML=shifts.slice().reverse().slice(0,30).map(s=>`<tr><td>${esc(s.name)}</td><td class="num">${hm(s.start)}</td><td class="num">${hm(s.end)}</td><td class="r num">${rp(s.openCash)}</td>
+      <td class="r num">${s.end?rp(s.expected):"-"}</td><td class="r num">${s.end?rp(s.counted):"-"}</td><td class="r num ${s.end?(s.diff===0?"diff-ok":"diff-bad"):""}">${s.end?(s.diff>0?"+":s.diff<0?"−":"")+rp(Math.abs(s.diff)):"-"}</td></tr>`).join("")||`<tr><td colspan="7" class="hint">Belum ada shift.</td></tr>`}
 }
 
 // ---------- pengaturan ----------
-function fillSettings(){$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
+function fillSettings(){renderUsers();$("#sIdle").value=String(cfg.idle||5);$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
 $("#saveSettings").onclick=()=>{cfg={...cfg,name:$("#sName").value.trim()||"Batang Garing Coffee",addr:$("#sAddr").value.trim(),tax:+$("#sTax").value||0,footer:$("#sFooter").value,paper:+$("#sPaper").value,autoPrint:+$("#sAutoPrint").value,sheet:$("#sSheet").value.trim(),key:$("#sKey").value.trim()};saveCfg();fillSettings();toast("Pengaturan disimpan");syncPending(false)};
 $("#openDash").onclick=()=>{if(!cfg.sheet)return toast("Isi dulu URL Web App");const u=cfg.sheet+"?key="+encodeURIComponent(cfg.key);
   modal(`<h3>Dashboard pemilik</h3><p class="hint">Buka link ini di HP pemilik dan simpan sebagai bookmark. Isinya omzet hari ini dan transaksi terakhir, diperbarui otomatis.</p><div class="receipt" style="white-space:normal;word-break:break-all;max-width:none">${esc(u)}</div><div class="row"><button class="btn ghost" id="cpy">Salin link</button><a class="btn primary" style="text-align:center;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Buka</a></div>`);
   $("#cpy").onclick=()=>navigator.clipboard?.writeText(u).then(()=>toast("Link disalin"),()=>toast("Salin manual dari kotak di atas"))};
 $("#exportMenu").onclick=()=>{const s=JSON.stringify(menu,null,1);navigator.clipboard?.writeText(s).then(()=>toast("Data menu disalin. Tempel ke catatan sebagai cadangan."),()=>toast("Gagal menyalin"))};
 $("#importMenu").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{const d=JSON.parse(t);if(!Array.isArray(d))throw 0;menu=d.map(x=>({id:x.id||uid(),name:x.name,cat:x.cat||"Lainnya",price:+x.price,on:x.on!==false}));saveMenu();toast(`${menu.length} menu dimuat`);renderPos()}).catch(()=>toast("File tidak dikenali"))};
+$("#sIdle").onchange=()=>{cfg.idle=+$("#sIdle").value;saveCfg();resetIdle();toast("Kunci otomatis disimpan")};
+function renderUsers(){
+  $("#userRows").innerHTML=users.map(u=>`<tr><td><b>${esc(u.name)}</b>${me&&u.id===me.id?" (Anda)":""}</td><td>${u.role==="owner"?"Pemilik":"Kasir"}</td>
+    <td>${u.active?`<span class="pill ok">Aktif</span>`:`<span class="pill wait">Nonaktif</span>`}</td>
+    <td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-pw="${u.id}">Ganti password</button>${me&&u.id!==me.id?`<button class="btn ghost sm" data-act="${u.id}">${u.active?"Nonaktifkan":"Aktifkan"}</button>`:""}</div></td></tr>`).join("");
+  $("#userRows").querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>userForm(users.find(u=>u.id===b.dataset.pw)));
+  $("#userRows").querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const u=users.find(x=>x.id===b.dataset.act);
+    if(u.active&&u.role==="owner"&&users.filter(x=>x.role==="owner"&&x.active).length<2)return toast("Harus ada minimal satu pemilik aktif");
+    const os=openShift();if(u.active&&os&&os.userId===u.id)return toast(`Tutup dulu shift ${u.name}`);
+    u.active=!u.active;saveUsers();renderUsers();toast(u.active?`${u.name} diaktifkan`:`${u.name} dinonaktifkan`)});
+}
+$("#addUser").onclick=()=>userForm(null);
+function userForm(u){
+  modal(`<h3>${u?"Ganti password "+esc(u.name):"Tambah kasir"}</h3>
+    ${u?"":`<div class="field"><label for="uName">Nama</label><input id="uName" placeholder="mis. Rina" autocomplete="off"></div>
+    <div class="field"><label for="uRole">Peran</label><select id="uRole"><option value="kasir">Kasir</option><option value="owner">Pemilik (akses penuh)</option></select></div>`}
+    <div class="field"><label for="uPw">Password baru</label><input id="uPw" type="password" autocomplete="new-password" placeholder="minimal 4 karakter"></div>
+    <div class="field"><label for="uPw2">Ulangi password</label><input id="uPw2" type="password" autocomplete="new-password"></div>
+    <p class="err" id="uErr"></p>
+    <div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn primary" id="uSave">Simpan</button></div>`);
+  ($("#uName")||$("#uPw")).focus();
+  $("#uSave").onclick=async()=>{const pw=$("#uPw").value,pw2=$("#uPw2").value,err=t=>$("#uErr").textContent=t;
+    if(pw.length<4)return err("Password minimal 4 karakter");if(pw!==pw2)return err("Kedua password tidak sama");
+    if(u){u.salt=uid()+uid();u.hash=await hashPw(pw,u.salt);saveUsers();closeModal();return toast(`Password ${u.name} diganti`)}
+    const name=$("#uName").value.trim();if(!name)return err("Nama wajib diisi");
+    if(users.some(x=>x.name.toLowerCase()===name.toLowerCase()))return err("Nama sudah dipakai");
+    users.push(await makeUser(name,$("#uRole").value,pw));saveUsers();closeModal();renderUsers();toast(`${name} ditambahkan`)};
+}
 $("#resetAll").onclick=()=>{const b=$("#resetAll");if(b.dataset.sure){trx=[];saveTrx();delete b.dataset.sure;b.textContent="Hapus semua transaksi";toast("Transaksi dihapus")}else{b.dataset.sure=1;b.textContent="Ketuk lagi untuk menghapus"}};
 
+// ---------- akun, login & shift ----------
+let users=store.get("users",[]),shifts=store.get("shifts",[]),me=null;
+const saveUsers=()=>store.set("users",users),saveShifts=()=>store.set("shifts",shifts);
+const openShift=()=>shifts.find(s=>!s.end);
+const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+async function hashPw(pw,salt){const enc=new TextEncoder();const k=await crypto.subtle.importKey("raw",enc.encode(pw),"PBKDF2",false,["deriveBits"]);
+  return b64(await crypto.subtle.deriveBits({name:"PBKDF2",salt:enc.encode(salt),iterations:120000,hash:"SHA-256"},k,256))}
+async function makeUser(name,role,pw){const salt=uid()+uid();return{id:uid(),name,role,salt,hash:await hashPw(pw,salt),active:true}}
+const checkPw=async(u,pw)=>(await hashPw(pw,u.salt))===u.hash;
+const recoveryCode=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(8));return [...r].map(x=>a[x%a.length]).join("").replace(/(.{4})/,"$1-")};
+
+function lockShell(inner){$("#lock").innerHTML=`<div class="lock-card" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" style="margin:0">BG</div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
+
+function lock(){me=null;closeModal();$("#cart").classList.remove("open");clearTimeout(idleT);applyRole();lockScreen()}
+function lockScreen(){
+  if(!users.length)return setupScreen();
+  const os=openShift(),active=users.filter(u=>u.active);let pick=os?active.find(u=>u.id===os.userId):active.length===1?active[0]:null;
+  lockShell(`${os?`<div class="banner">Shift <b>${esc(os.name)}</b> sedang berjalan sejak ${new Date(os.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}. Hanya ${esc(os.name)} atau pemilik yang bisa masuk.</div>`:""}
+    <div><div class="field"><label>Siapa yang bertugas?</label></div><div class="users" style="margin-top:8px">${active.map(u=>`<button class="user-btn" data-u="${u.id}" aria-pressed="${pick&&pick.id===u.id}"><span class="avatar">${esc(initials(u.name))}</span>${esc(u.name)}<small>${u.role==="owner"?"Pemilik":"Kasir"}</small></button>`).join("")}</div></div>
+    <div class="field"><label for="lPw">Password</label><input id="lPw" type="password" autocomplete="current-password" placeholder="Masukkan password"></div>
+    <p class="err" id="lErr"></p>
+    <button class="btn primary" id="lGo">Masuk</button>
+    <button class="linkbtn" id="lForgot">Lupa password pemilik?</button>`);
+  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lPw").focus()});
+  const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
+    if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
+    if(!pick)return err("Pilih nama Anda dulu");
+    if(!(await checkPw(pick,$("#lPw").value))){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);$("#lPw").value="";return err("Password salah")}
+    store.set("fails",{n:0,until:0});
+    const s=openShift();
+    if(s&&s.userId!==pick.id&&pick.role!=="owner")return err(`Shift ${s.name} masih berjalan. Minta ${s.name} atau pemilik menutupnya dulu.`);
+    me=pick;if(s)return unlock();openShiftScreen()};
+  $("#lGo").onclick=go;$("#lPw").onkeydown=e=>{if(e.key==="Enter")go()};
+  $("#lForgot").onclick=forgotScreen;
+  if(pick)$("#lPw").focus();
+}
+function setupScreen(){
+  lockShell(`<div><b style="font-size:17px">Buat akun pemilik</b><p class="hint" style="margin-top:4px">Akun ini memegang akses penuh: menu, pengaturan, kasir, dan laporan shift. Kasir lain ditambahkan setelah ini.</p></div>
+    <div class="field"><label for="oName">Nama pemilik</label><input id="oName" placeholder="mis. Tengku" autocomplete="name"></div>
+    <div class="field"><label for="oPw">Password</label><input id="oPw" type="password" autocomplete="new-password" placeholder="minimal 4 karakter"></div>
+    <div class="field"><label for="oPw2">Ulangi password</label><input id="oPw2" type="password" autocomplete="new-password"></div>
+    <p class="err" id="oErr"></p><button class="btn primary" id="oGo">Buat akun</button>`);
+  $("#oName").focus();
+  $("#oGo").onclick=async()=>{const err=t=>$("#oErr").textContent=t,name=$("#oName").value.trim(),pw=$("#oPw").value;
+    if(!name)return err("Nama wajib diisi");if(pw.length<4)return err("Password minimal 4 karakter");if(pw!==$("#oPw2").value)return err("Kedua password tidak sama");
+    const u=await makeUser(name,"owner",pw);const code=recoveryCode();const rs=uid()+uid();
+    store.set("recovery",{salt:rs,hash:await hashPw(code.replace("-",""),rs)});users.push(u);saveUsers();me=u;
+    lockShell(`<div><b style="font-size:17px">Simpan kode pemulihan ini</b><p class="hint" style="margin-top:4px">Kalau lupa password pemilik, kode ini satu-satunya cara masuk lagi. Tulis di kertas dan simpan di tempat aman. Kode ini tidak akan ditampilkan lagi.</p></div>
+      <div class="code">${code}</div><button class="btn primary" id="oDone">Sudah saya catat</button>`);
+    $("#oDone").onclick=openShiftScreen};
+}
+function forgotScreen(){
+  lockShell(`<div><b style="font-size:17px">Atur ulang password pemilik</b><p class="hint" style="margin-top:4px">Masukkan kode pemulihan yang dicatat saat akun pemilik dibuat.</p></div>
+    <div class="field"><label for="fCode">Kode pemulihan</label><input id="fCode" autocomplete="off" placeholder="XXXX-XXXX" style="text-transform:uppercase"></div>
+    <div class="field"><label for="fPw">Password baru pemilik</label><input id="fPw" type="password" autocomplete="new-password"></div>
+    <p class="err" id="fErr"></p><div class="row"><button class="btn ghost" id="fBack">Kembali</button><button class="btn primary" id="fGo">Atur ulang</button></div>`);
+  $("#fBack").onclick=lockScreen;
+  $("#fGo").onclick=async()=>{const err=t=>$("#fErr").textContent=t,rec=store.get("recovery",null),f=store.get("fails",{n:0,until:0});
+    if(f.until>Date.now())return err("Terlalu banyak percobaan salah. Tunggu sebentar.");
+    if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);return err("Kode pemulihan salah")}
+    if($("#fPw").value.length<4)return err("Password minimal 4 karakter");
+    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);saveUsers();
+    toast(`Password ${o.name} sudah diganti`);lockScreen()};
+}
+function openShiftScreen(){
+  const last=shifts.filter(s=>s.end).slice(-1)[0];
+  lockShell(`<div><b style="font-size:17px">Halo, ${esc(me.name)}. Buka shift</b><p class="hint" style="margin-top:4px">Hitung uang tunai di laci sebagai modal awal.</p></div>
+    <div class="field"><label for="sOpen">Modal awal di laci (Rp)</label><input id="sOpen" class="money" inputmode="numeric" placeholder="0" value="${last?last.counted:""}"></div>
+    <p class="err" id="sErr"></p><button class="btn primary" id="sGo">Buka shift</button>
+    ${me.role==="owner"?`<button class="linkbtn" id="sSkip">Masuk tanpa membuka shift (hanya mengelola)</button>`:""}<button class="linkbtn" id="sBack">Bukan saya, kembali</button>`);
+  $("#sOpen").focus();
+  $("#sGo").onclick=()=>{const v=+String($("#sOpen").value).replace(/\D/g,"")||0;
+    shifts.push({id:uid(),userId:me.id,name:me.name,start:new Date().toISOString(),openCash:v,end:null});saveShifts();unlock();toast(`Shift dibuka. Selamat bertugas, ${me.name}!`)};
+  $("#sOpen").onkeydown=e=>{if(e.key==="Enter")$("#sGo").click()};
+  if($("#sSkip"))$("#sSkip").onclick=unlock;
+  $("#sBack").onclick=()=>{me=null;lockScreen()};
+}
+function unlock(){$("#lock").hidden=true;$("#lock").innerHTML="";applyRole();show("pos");resetIdle()}
+function applyRole(){
+  const owner=me&&me.role==="owner";
+  OWNER_VIEWS.forEach(v=>document.querySelector(`.nav[data-view="${v}"]`).hidden=!owner);
+  $("#meAv").textContent=me?initials(me.name):"?";$("#meName").textContent=me?me.name.split(" ")[0].slice(0,9):"Shift";
+}
+let idleT;
+function resetIdle(){clearTimeout(idleT);if(me)idleT=setTimeout(()=>{lock();toast("Layar terkunci otomatis")},(+cfg.idle||5)*60000)}
+["pointerdown","keydown"].forEach(e=>addEventListener(e,resetIdle,{passive:true}));
+
+$("#meBtn").onclick=()=>{
+  if(!me)return lockScreen();
+  const s=openShift();
+  modal(`<h3>${esc(me.name)} · ${me.role==="owner"?"Pemilik":"Kasir"}</h3>
+    ${s?`<div class="recap"><div><span>Shift</span><span>${esc(s.name)}</span></div><div><span>Dibuka</span><span>${new Date(s.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</span></div><div><span>Transaksi</span><span>${trx.filter(t=>t.shift===s.id).length}</span></div></div>`:`<p class="hint">Tidak ada shift yang berjalan.</p>`}
+    <div class="row"><button class="btn ghost" id="mLock">Kunci layar</button>${s?`<button class="btn primary" id="mClose">Tutup shift</button>`:me.role==="owner"?`<button class="btn primary" id="mOpen">Buka shift</button>`:""}</div>`);
+  $("#mLock").onclick=lock;
+  if($("#mClose"))$("#mClose").onclick=closeShiftForm;
+  if($("#mOpen"))$("#mOpen").onclick=()=>{closeModal();openShiftScreen()};
+};
+function closeShiftForm(){
+  const s=openShift();if(!s)return;
+  modal(`<h3>Tutup shift ${esc(s.name)}</h3><p class="hint">Hitung semua uang tunai di laci, lalu masukkan jumlahnya. Angka dari sistem baru ditampilkan setelah shift ditutup.</p>
+    <div class="field"><label for="cCount">Uang tunai di laci (Rp)</label><input id="cCount" class="money" inputmode="numeric" placeholder="0"></div>
+    <p class="err" id="cErr"></p><div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn primary" id="cGo">Tutup shift</button></div>`);
+  $("#cCount").focus();
+  $("#cGo").onclick=()=>{const raw=String($("#cCount").value).replace(/\D/g,"");if(raw==="")return $("#cErr").textContent="Masukkan jumlah uang di laci (boleh 0)";
+    const list=trx.filter(t=>t.shift===s.id),cash=list.filter(t=>t.method==="Tunai").reduce((a,t)=>a+t.total,0);
+    const byMethod={};list.forEach(t=>byMethod[t.method]=(byMethod[t.method]||0)+t.total);
+    Object.assign(s,{end:new Date().toISOString(),counted:+raw,cashSales:cash,nonCash:list.reduce((a,t)=>a+t.total,0)-cash,byMethod,trxCount:list.length,expected:s.openCash+cash,closedBy:me.name});
+    s.diff=s.counted-s.expected;saveShifts();syncPending(false);showShiftRecap(s)};
+}
+function shiftLines(s){
+  const W=+cfg.paper,line="-".repeat(W),n=v=>Math.round(v).toLocaleString("id-ID");
+  const lr=(l,r)=>{l=String(l);r=String(r);const sp=W-l.length-r.length;return sp>=1?l+" ".repeat(sp)+r:l.slice(0,W-r.length-1)+" "+r};
+  const t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  return ["REKAP SHIFT",cfg.name,line,lr("Kasir",s.name),lr("Buka",t(s.start)),lr("Tutup",t(s.end)),lr("Transaksi",s.trxCount),line,
+    ...Object.entries(s.byMethod).map(([m,v])=>lr(m,n(v))),line,lr("Modal awal",n(s.openCash)),lr("Penjualan tunai",n(s.cashSales)),
+    lr("Seharusnya di laci",n(s.expected)),lr("Uang dihitung",n(s.counted)),lr("SELISIH",(s.diff>0?"+":"")+n(s.diff)),line,lr("Ditutup oleh",s.closedBy)];
+}
+function showShiftRecap(s){
+  const d=s.diff;
+  modal(`<h3>Shift ditutup</h3>
+    <div class="recap"><div><span>Transaksi</span><span>${s.trxCount}</span></div>
+    ${Object.entries(s.byMethod).map(([m,v])=>`<div><span>${esc(m)}</span><span>${rp(v)}</span></div>`).join("")}
+    <div><span>Modal awal</span><span>${rp(s.openCash)}</span></div><div><span>Penjualan tunai</span><span>${rp(s.cashSales)}</span></div>
+    <div><span>Seharusnya di laci</span><span>${rp(s.expected)}</span></div><div><span>Uang dihitung</span><span>${rp(s.counted)}</span></div></div>
+    <div class="change ${d===0?"":"short"}"><span>${d===0?"Kas pas":d>0?"Kas lebih":"Kas kurang"}</span><b class="num">${rp(Math.abs(d))}</b></div>
+    <div class="row"><button class="btn ghost" id="rsPrint">Cetak rekap</button><button class="btn primary" id="rsDone">Selesai &amp; keluar</button></div>`);
+  $("#rsPrint").onclick=()=>printLines(shiftLines(s));
+  $("#rsDone").onclick=lock;
+  $("#modal .scrim").onclick=null;
+}
+
 if("serviceWorker" in navigator&&location.protocol==="https:"&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
-renderPos();
+renderPos();applyRole();lockScreen();
 })();
 </script>
