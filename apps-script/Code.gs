@@ -14,6 +14,9 @@ function sheet_(name, header) {
     sh.appendRow(header);
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, header.length).setFontWeight('bold');
+  } else if (sh.getLastColumn() < header.length) {
+    // versi baru menambah kolom di kanan: lengkapi judul kolomnya
+    sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
   }
   return sh;
 }
@@ -24,24 +27,24 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    const trx = sheet_('Transaksi', ['Waktu', 'Tanggal', 'No Struk', 'Toko', 'Metode', 'Subtotal', 'Pajak', 'Total', 'Dibayar', 'Kembali', 'Jumlah Item', 'Kasir']);
-    const det = sheet_('Detail Item', ['Tanggal', 'No Struk', 'Menu', 'Qty', 'Harga', 'Subtotal']);
+    const trx = sheet_('Transaksi', ['Waktu', 'Tanggal', 'No Struk', 'Toko', 'Metode', 'Subtotal', 'Pajak', 'Total', 'Dibayar', 'Kembali', 'Jumlah Item', 'Kasir', 'HPP', 'Laba kotor']);
+    const det = sheet_('Detail Item', ['Tanggal', 'No Struk', 'Menu', 'Qty', 'Harga', 'Subtotal', 'HPP satuan', 'Total HPP']);
     const ada = new Set(trx.getLastRow() > 1 ? trx.getRange(2, 3, trx.getLastRow() - 1, 1).getValues().flat().map(String) : []);
     const rowsT = [], rowsD = [];
     (data.transactions || []).forEach(t => {
       if (ada.has(String(t.no))) return; // cegah dobel kalau dikirim ulang
       const d = new Date(t.time);
       const tgl = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-      rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '']);
-      t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price]));
+      rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '', t.hpp || 0, t.sub - (t.hpp || 0)]);
+      t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price, i.hpp || 0, (i.hpp || 0) * i.qty]));
     });
     if (rowsT.length) trx.getRange(trx.getLastRow() + 1, 1, rowsT.length, rowsT[0].length).setValues(rowsT);
     if (rowsD.length) det.getRange(det.getLastRow() + 1, 1, rowsD.length, rowsD[0].length).setValues(rowsD);
     const shifts = data.shifts || [];
     if (shifts.length) {
-      const sh = sheet_('Shift', ['ID', 'Kasir', 'Buka', 'Tutup', 'Transaksi', 'Modal awal', 'Penjualan tunai', 'Non-tunai', 'Seharusnya di laci', 'Uang dihitung', 'Selisih', 'Ditutup oleh', 'Pengeluaran', 'Pengeluaran dari laci']);
+      const sh = sheet_('Shift', ['ID', 'Kasir', 'Buka', 'Tutup', 'Transaksi', 'Modal awal', 'Penjualan tunai', 'Non-tunai', 'Seharusnya di laci', 'Uang dihitung', 'Selisih', 'Ditutup oleh', 'Pengeluaran', 'Pengeluaran dari laci', 'Penjualan tanpa pajak', 'HPP', 'Laba kotor']);
       const adaS = new Set(sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat().map(String) : []);
-      const rowsS = shifts.filter(x => !adaS.has(String(x.id))).map(x => [x.id, x.name, new Date(x.start), new Date(x.end), x.trxCount, x.openCash, x.cashSales, x.nonCash, x.expected, x.counted, x.diff, x.closedBy, x.expTotal || 0, x.expCash || 0]);
+      const rowsS = shifts.filter(x => !adaS.has(String(x.id))).map(x => [x.id, x.name, new Date(x.start), new Date(x.end), x.trxCount, x.openCash, x.cashSales, x.nonCash, x.expected, x.counted, x.diff, x.closedBy, x.expTotal || 0, x.expCash || 0, x.netSales || 0, x.hpp || 0, (x.netSales || 0) - (x.hpp || 0)]);
       if (rowsS.length) sh.getRange(sh.getLastRow() + 1, 1, rowsS.length, rowsS[0].length).setValues(rowsS);
     }
     const exps = data.expenses || [];
@@ -53,6 +56,23 @@ function doPost(e) {
         return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.cashier, x.cat, x.note || '', x.src === 'Laci' ? 'Laci kasir' : 'Uang lain', x.amount, x.shift];
       });
       if (rowsE.length) se.getRange(se.getLastRow() + 1, 1, rowsE.length, rowsE[0].length).setValues(rowsE);
+    }
+    const mv = data.moves || [];
+    if (mv.length) {
+      const sm = sheet_('Stok', ['ID', 'Waktu', 'Tanggal', 'Bahan', 'Jenis', 'Jumlah', 'Satuan', 'Harga per satuan', 'Nilai', 'Keterangan', 'Oleh']);
+      const adaM = new Set(sm.getLastRow() > 1 ? sm.getRange(2, 1, sm.getLastRow() - 1, 1).getValues().flat().map(String) : []);
+      const rowsM = mv.filter(x => !adaM.has(String(x.id))).map(x => {
+        const d = new Date(x.time);
+        return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.name, x.type, x.qty, x.unit, x.cost || 0, Math.round(x.qty * (x.cost || 0)), x.note || '', x.by || ''];
+      });
+      if (rowsM.length) sm.getRange(sm.getLastRow() + 1, 1, rowsM.length, rowsM[0].length).setValues(rowsM);
+    }
+    if (data.stock && data.stock.length) {
+      const ss = sheet_('Sisa Stok', ['Bahan', 'Sisa', 'Satuan', 'Batas menipis', 'Harga per satuan', 'Nilai stok', 'Status', 'Diperbarui']);
+      if (ss.getLastRow() > 1) ss.getRange(2, 1, ss.getLastRow() - 1, 8).clearContent();
+      const now = new Date();
+      const rows = data.stock.map(b => [b.name, b.stock, b.unit, b.min || 0, b.cost, Math.round(Math.max(0, b.stock) * b.cost), b.stock <= 0 ? 'Habis' : b.stock <= (b.min || 0) ? 'Menipis' : 'Aman', now]);
+      ss.getRange(2, 1, rows.length, 8).setValues(rows);
     }
     rekap_();
   } finally {
@@ -77,7 +97,7 @@ function doGet(e) {
   const tz = Session.getScriptTimeZone();
   const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Transaksi');
-  const rows = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 11).getValues() : [];
+  const rows = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(11, Math.min(14, sh.getLastColumn()))).getValues() : [];
   const hari = rows.filter(r => r[1] === today || (r[1] instanceof Date && Utilities.formatDate(r[1], tz, 'yyyy-MM-dd') === today));
   const omzet = hari.reduce((a, r) => a + Number(r[7]), 0);
   const rp = n => 'Rp' + Math.round(n).toLocaleString('id-ID');
@@ -93,6 +113,10 @@ function doGet(e) {
   const expHari = shE && shE.getLastRow() > 1 ? shE.getRange(2, 1, shE.getLastRow() - 1, 8).getValues()
     .filter(r => (r[2] instanceof Date ? Utilities.formatDate(r[2], tz, 'yyyy-MM-dd') : r[2]) === today) : [];
   const keluar = expHari.reduce((a, r) => a + Number(r[7]), 0);
+  const hpp = hari.reduce((a, r) => a + (Number(r[12]) || 0), 0);
+  const laba = hari.reduce((a, r) => a + Number(r[5]), 0) - hpp;
+  const shSisa = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sisa Stok');
+  const menipis = shSisa && shSisa.getLastRow() > 1 ? shSisa.getRange(2, 1, shSisa.getLastRow() - 1, 7).getValues().filter(r => r[0] && r[6] !== 'Aman') : [];
   const shS = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shift');
   const shifts = shS && shS.getLastRow() > 1 ? shS.getRange(2, 1, shS.getLastRow() - 1, 12).getValues().slice(-5).reverse() : [];
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -107,7 +131,10 @@ h2{font-size:15px;margin:0 0 8px}</style>
 <div class="k"><div class="c"><div class="l">Omzet hari ini</div><div class="v">${rp(omzet)}</div></div>
 <div class="c"><div class="l">Transaksi</div><div class="v">${hari.length}</div></div>
 <div class="c"><div class="l">Pengeluaran hari ini</div><div class="v">${rp(keluar)}</div></div>
-<div class="c"><div class="l">Bersih</div><div class="v">${rp(omzet - keluar)}</div></div></div>
+<div class="c"><div class="l">Bersih</div><div class="v">${rp(omzet - keluar)}</div></div>
+<div class="c"><div class="l">HPP hari ini</div><div class="v">${rp(hpp)}</div></div>
+<div class="c"><div class="l">Laba kotor</div><div class="v">${rp(laba)}</div></div></div>
+<div class="c" style="margin-bottom:12px"><h2>Stok menipis</h2><table>${menipis.map(r => `<tr><td>${r[0]} · ${r[6]}</td><td style="color:#c8501e">${Number(r[1]).toLocaleString('id-ID')} ${r[2]}</td></tr>`).join('') || '<tr><td>Semua stok aman</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${n}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${r[1]} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Pengeluaran hari ini</h2><table>${expHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${r[4]}${r[5] ? ' · ' + r[5] : ''} · ${r[3]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>

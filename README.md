@@ -31,6 +31,16 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Rekap shift ikut dikirim ke sheet `Shift` di spreadsheet dan tampil di dashboard pemilik. Kalau Apps Script sudah terpasang sebelumnya, tempel ulang `apps-script/Code.gs` lalu **Deploy → Manage deployments → Edit → New version**.
 - Password disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
 
+## Stok bahan & HPP
+
+- **Tambah bahan** (pemilik): tab **Stok → + Tambah bahan**. Isi nama, satuan (gram, ml, pcs), harga beli per kemasan dan isi kemasannya (misalnya Rp180.000 untuk 1000 gram), stok sekarang, dan batas stok menipis. Harga per satuan dihitung otomatis.
+- **Resep menu:** tab **Menu → Ubah**, bagian *Resep per porsi*. Contoh Es Kopi Susu: Biji kopi 18 gram, Susu UHT 150 ml, Cup plastik 1 pcs. HPP dan margin per porsi langsung muncul, dan daftar menu menampilkan kolom HPP dan Margin.
+- **Stok keluar otomatis:** setiap menu terjual, stok bahannya dipotong sesuai resep. Kartu menu di layar kasir menampilkan sisa porsi, dan aplikasi memberi tahu saat ada bahan yang menipis.
+- **Stok masuk:** tab Stok → **Stok masuk** (atau tombol Masuk di baris bahan). Ada tombol cepat per kemasan. Harga per satuan diperbarui dengan rata-rata. Kalau dibayar dari laci, centang pilihan agar ikut tercatat sebagai pengeluaran shift.
+- **Hitung stok / opname** (pemilik): tombol **Hitung** untuk menyamakan stok dengan jumlah sebenarnya, termasuk mencatat bahan rusak atau terbuang. Semua pergerakan tercatat di *Riwayat stok*.
+- **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
+- **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
+
 ## Pengeluaran & laporan WhatsApp
 
 - **Catat pengeluaran:** saat shift berjalan, buka tab Laporan → **+ Catat pengeluaran**, atau ketuk nama di pojok kiri bawah → **Catat pengeluaran**. Isi jumlah, kategori (es batu, gas, bahan baku, dan lain-lain), keterangan, dan sumber uangnya.
