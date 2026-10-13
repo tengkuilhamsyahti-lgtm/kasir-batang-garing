@@ -39,10 +39,20 @@ function doPost(e) {
     if (rowsD.length) det.getRange(det.getLastRow() + 1, 1, rowsD.length, rowsD[0].length).setValues(rowsD);
     const shifts = data.shifts || [];
     if (shifts.length) {
-      const sh = sheet_('Shift', ['ID', 'Kasir', 'Buka', 'Tutup', 'Transaksi', 'Modal awal', 'Penjualan tunai', 'Non-tunai', 'Seharusnya di laci', 'Uang dihitung', 'Selisih', 'Ditutup oleh']);
+      const sh = sheet_('Shift', ['ID', 'Kasir', 'Buka', 'Tutup', 'Transaksi', 'Modal awal', 'Penjualan tunai', 'Non-tunai', 'Seharusnya di laci', 'Uang dihitung', 'Selisih', 'Ditutup oleh', 'Pengeluaran', 'Pengeluaran dari laci']);
       const adaS = new Set(sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat().map(String) : []);
-      const rowsS = shifts.filter(x => !adaS.has(String(x.id))).map(x => [x.id, x.name, new Date(x.start), new Date(x.end), x.trxCount, x.openCash, x.cashSales, x.nonCash, x.expected, x.counted, x.diff, x.closedBy]);
+      const rowsS = shifts.filter(x => !adaS.has(String(x.id))).map(x => [x.id, x.name, new Date(x.start), new Date(x.end), x.trxCount, x.openCash, x.cashSales, x.nonCash, x.expected, x.counted, x.diff, x.closedBy, x.expTotal || 0, x.expCash || 0]);
       if (rowsS.length) sh.getRange(sh.getLastRow() + 1, 1, rowsS.length, rowsS[0].length).setValues(rowsS);
+    }
+    const exps = data.expenses || [];
+    if (exps.length) {
+      const se = sheet_('Pengeluaran', ['ID', 'Waktu', 'Tanggal', 'Kasir', 'Kategori', 'Keterangan', 'Sumber', 'Jumlah', 'ID Shift']);
+      const adaE = new Set(se.getLastRow() > 1 ? se.getRange(2, 1, se.getLastRow() - 1, 1).getValues().flat().map(String) : []);
+      const rowsE = exps.filter(x => !adaE.has(String(x.id))).map(x => {
+        const d = new Date(x.time);
+        return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.cashier, x.cat, x.note || '', x.src === 'Laci' ? 'Laci kasir' : 'Uang lain', x.amount, x.shift];
+      });
+      if (rowsE.length) se.getRange(se.getLastRow() + 1, 1, rowsE.length, rowsE[0].length).setValues(rowsE);
     }
     rekap_();
   } finally {
@@ -79,6 +89,10 @@ function doGet(e) {
   });
   const top = Object.entries(items).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const last = hari.slice(-10).reverse();
+  const shE = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Pengeluaran');
+  const expHari = shE && shE.getLastRow() > 1 ? shE.getRange(2, 1, shE.getLastRow() - 1, 8).getValues()
+    .filter(r => (r[2] instanceof Date ? Utilities.formatDate(r[2], tz, 'yyyy-MM-dd') : r[2]) === today) : [];
+  const keluar = expHari.reduce((a, r) => a + Number(r[7]), 0);
   const shS = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shift');
   const shifts = shS && shS.getLastRow() > 1 ? shS.getRange(2, 1, shS.getLastRow() - 1, 12).getValues().slice(-5).reverse() : [];
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -91,9 +105,12 @@ table{width:100%;border-collapse:collapse;font-size:14px}td{padding:8px 4px;bord
 h2{font-size:15px;margin:0 0 8px}</style>
 <h1>${data_(e)}</h1><div class="s">${Utilities.formatDate(new Date(), tz, 'dd MMM yyyy HH:mm')} · diperbarui tiap menit</div>
 <div class="k"><div class="c"><div class="l">Omzet hari ini</div><div class="v">${rp(omzet)}</div></div>
-<div class="c"><div class="l">Transaksi</div><div class="v">${hari.length}</div></div></div>
+<div class="c"><div class="l">Transaksi</div><div class="v">${hari.length}</div></div>
+<div class="c"><div class="l">Pengeluaran hari ini</div><div class="v">${rp(keluar)}</div></div>
+<div class="c"><div class="l">Bersih</div><div class="v">${rp(omzet - keluar)}</div></div></div>
 <div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${n}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${r[1]} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
+<div class="c" style="margin-bottom:12px"><h2>Pengeluaran hari ini</h2><table>${expHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${r[4]}${r[5] ? ' · ' + r[5] : ''} · ${r[3]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c"><h2>Transaksi terakhir</h2><table>${last.map(r => `<tr><td>${Utilities.formatDate(new Date(r[0]), tz, 'HH:mm')} · ${r[2]} · ${r[4]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>`;
   return HtmlService.createHtmlOutput(html).setTitle('Pantau Kasir').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

@@ -31,6 +31,14 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Rekap shift ikut dikirim ke sheet `Shift` di spreadsheet dan tampil di dashboard pemilik. Kalau Apps Script sudah terpasang sebelumnya, tempel ulang `apps-script/Code.gs` lalu **Deploy → Manage deployments → Edit → New version**.
 - Password disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
 
+## Pengeluaran & laporan WhatsApp
+
+- **Catat pengeluaran:** saat shift berjalan, buka tab Laporan → **+ Catat pengeluaran**, atau ketuk nama di pojok kiri bawah → **Catat pengeluaran**. Isi jumlah, kategori (es batu, gas, bahan baku, dan lain-lain), keterangan, dan sumber uangnya.
+- **Sumber uang:** pilih *Laci kasir* kalau uangnya diambil dari laci (mengurangi uang yang seharusnya ada di laci), atau *Uang lain / transfer* kalau dibayar dari luar laci (hanya dicatat).
+- **Nomor penerima:** Atur → Laporan shift ke WhatsApp → isi nomor (format 08… atau 628…) → **Simpan nomor**. **Coba kirim** untuk mengetes.
+- **Saat tutup shift:** WhatsApp terbuka otomatis dengan laporan berisi penjualan per metode bayar, daftar pengeluaran, hitungan kas laci, selisih, dan hasil bersih shift. Kasir tinggal menekan **Kirim**. Tombol **Kirim ke WhatsApp** di layar rekap bisa dipakai kalau perlu mengirim ulang.
+- Pengeluaran juga masuk ke sheet `Pengeluaran` di spreadsheet dan tampil di dashboard pemilik (pengeluaran hari ini dan hasil bersih).
+
 ## Menyambungkan Google Spreadsheet (sekali saja, ±5 menit)
 
 1. Buat Google Spreadsheet baru, misalnya "Penjualan Batang Garing Coffee".
