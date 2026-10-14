@@ -72,6 +72,13 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Butuh Google Chrome terpasang di tablet.
 - APK dibangun otomatis oleh GitHub Actions (`.github/workflows/apk.yml`) dari folder `android/`.
 
+## Mode offline
+
+- Setelah aplikasi pernah dibuka sekali saat online, kasir bisa dibuka dan dipakai penuh tanpa internet: login, transaksi, simpan pesanan, cetak struk Bluetooth, stok, pengeluaran, dan tutup shift.
+- Saat offline muncul tanda merah **Offline · kasir tetap jalan** beserta jumlah transaksi yang menunggu dikirim. Semua data tersimpan di tablet.
+- Begitu internet kembali, transaksi, shift, pengeluaran, stok, dan konsumsi otomatis dikirim ke spreadsheet (tanpa dobel).
+- Yang butuh internet: kiriman ke spreadsheet, dashboard pemilik, dan pesan WhatsApp (pesan yang ditekan Kirim saat offline akan terkirim otomatis oleh WhatsApp saat online).
+
 ## Menyambungkan Google Spreadsheet (sekali saja, ±5 menit)
 
 1. Buat Google Spreadsheet baru, misalnya "Penjualan Batang Garing Coffee".

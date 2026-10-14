@@ -46,6 +46,8 @@ button{cursor:pointer}
 .topbar h1{font-size:22px;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
 .topbar .sub{color:var(--muted);font-size:13px}
 .clock{font-family:var(--f-mono);font-weight:700;font-size:22px;letter-spacing:-.02em;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 12px;line-height:1.1}
+.netpill{font-size:12px;font-weight:700;border-radius:999px;padding:7px 12px;background:var(--chili-soft);color:var(--chili)}
+.netpill.sending{background:var(--brand-soft);color:var(--brand)}
 .clock small{font-size:12px;color:var(--muted);font-weight:600;margin-left:4px}
 .search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
 .search input{border:0;background:none;outline:0;padding:11px 0;width:100%}
@@ -228,6 +230,7 @@ td.r,th.r{text-align:right}
         <div class="topbar">
           <div><h1 id="storeName">Batang Garing Coffee</h1><div class="sub" id="today"></div></div>
           <div class="clock num" id="clock" aria-label="Jam sekarang"></div>
+          <span class="netpill" id="netPill" role="status" hidden></span>
           <button class="btn ghost sm" id="ordersBtn" title="Pesanan belum dibayar">Belum bayar<span class="badge" id="ordersCount" hidden>0</span></button>
           <button class="btn ghost sm" id="quickPrinter" title="Printer struk"><span class="status-dot" id="qpDot"></span><span id="qpText">Sambung printer</span></button>
           <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Cari menu…" autocomplete="off"></label>
@@ -475,7 +478,7 @@ function renderCart(){
   $("#payBtn").disabled=!cart.length;$("#holdBtn").disabled=!cart.length;$("#konsBtn").disabled=!cart.length;
   $("#tableBtn").textContent=cur.table?tableLabel(cur.table)+(cur.name?" · "+cur.name:""):"Pilih meja";$("#tableBtn").classList.toggle("set",!!cur.table);
   $("#unpaidTag").hidden=!cur.id;$("#holdBtn").textContent=cur.id?"Simpan ubahan":"Simpan";
-  $("#ordersCount").hidden=!orders.length;$("#ordersBtn").classList.toggle("danger",!!orders.length);$("#ordersBtn").classList.toggle("ghost",!orders.length);$("#ordersCount").textContent=orders.length;
+  updateNet();$("#ordersCount").hidden=!orders.length;$("#ordersBtn").classList.toggle("danger",!!orders.length);$("#ordersBtn").classList.toggle("ghost",!orders.length);$("#ordersCount").textContent=orders.length;
   const n=cart.reduce((a,l)=>a+l.qty,0);
   $("#openCart").hidden=!n;$("#mcCount").textContent=`Lihat pesanan · ${n} item`;$("#mcTotal").textContent=rp(t.total);
 }
@@ -590,7 +593,9 @@ $("#connUsb").onclick=connectUsb;$("#quickPrinter").onclick=()=>printer?toast("P
 $("#testPrint").onclick=()=>printReceipt({no:"TES-001",time:new Date().toISOString(),items:[{name:"Tes printer",qty:1,price:1000}],sub:1000,tax:0,total:1000,method:"Tunai",paid:1000,change:0});
 
 // ---------- Google Spreadsheet ----------
-async function syncPending(manual){
+let syncing=false;
+async function syncPending(manual){if(syncing)return;syncing=true;try{await syncOnce(manual)}finally{syncing=false}}
+async function syncOnce(manual){
   const pend=trx.filter(t=>!t.synced&&!t.sample);
   const pendS=shifts.filter(s=>s.end&&!s.synced);
   const pendE=exps.filter(x=>!x.synced&&shifts.some(s=>s.id===x.shift&&s.end));
@@ -603,7 +608,16 @@ async function syncPending(manual){
     pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
   }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
   if(!$("#v-report").hidden)renderReport();
+  updateNet();
 }
+// Tanda offline: kasir tetap jalan, data disimpan di tablet dan dikirim saat online lagi.
+function updateNet(){
+  const off=!navigator.onLine,n=trx.filter(t=>!t.synced&&!t.sample).length,p=$("#netPill");
+  p.hidden=!off&&!(cfg.sheet&&n);p.classList.toggle("sending",!off);
+  p.textContent=off?"Offline · kasir tetap jalan"+(cfg.sheet&&n?`, ${n} transaksi menunggu dikirim`:""):`${n} transaksi menunggu dikirim`;
+}
+addEventListener("offline",()=>{updateNet();toast("Internet terputus. Kasir tetap bisa dipakai, data disimpan di tablet.")});
+addEventListener("online",()=>{updateNet();toast("Internet tersambung lagi")});
 $("#syncNow").onclick=()=>syncPending(true);
 setInterval(()=>syncPending(false),60000);
 addEventListener("online",()=>syncPending(false));
@@ -856,7 +870,7 @@ function showShiftRecap(s){
     <div><span>Pengeluaran dari laci</span><span>−${rp(s.expCash||0)}</span></div>
     <div><span>Seharusnya di laci</span><span>${rp(s.expected)}</span></div><div><span>Uang dihitung</span><span>${rp(s.counted)}</span></div></div>
     <div class="change ${d===0?"":"short"}"><span>${d===0?"Kas pas":d>0?"Kas lebih":"Kas kurang"}</span><b class="num">${rp(Math.abs(d))}</b></div>
-    ${waNum(cfg.wa)?`<p class="hint">Laporan sudah dibuka di WhatsApp. Kalau belum terkirim, ketuk Kirim ke WhatsApp.</p>`:`<p class="hint">Nomor WhatsApp penerima belum diisi. Pemilik bisa mengisinya di Atur.</p>`}
+    ${waNum(cfg.wa)?`<p class="hint">Laporan sudah dibuka di WhatsApp. Kalau belum terkirim, ketuk Kirim ke WhatsApp.${navigator.onLine?"":" Saat ini offline: tekan Kirim di WhatsApp, pesan akan terkirim otomatis begitu internet kembali."}</p>`:`<p class="hint">Nomor WhatsApp penerima belum diisi. Pemilik bisa mengisinya di Atur.</p>`}
     <div class="row"><button class="btn ghost" id="rsPrint">Cetak rekap</button>${waNum(cfg.wa)?`<button class="btn ghost" id="rsWa">Kirim ke WhatsApp</button>`:""}<button class="btn primary" id="rsDone">Selesai &amp; keluar</button></div>`);
   $("#rsPrint").onclick=()=>printLines(shiftLines(s));
   if($("#rsWa"))$("#rsWa").onclick=()=>window.open(waLink(waNum(cfg.wa),waText(s)),"_blank","noopener");
@@ -1122,7 +1136,7 @@ function waText(s){
     `Selisih: *${d===0?"PAS":(d>0?"LEBIH ":"KURANG ")+rp(Math.abs(d))}*`,``,`Bersih shift (penjualan - pengeluaran): *${omzet<(s.expTotal||0)?"-":""}${rp(Math.abs(omzet-(s.expTotal||0)))}*`].join("\n");
 }
 
-if("serviceWorker" in navigator&&location.protocol==="https:"&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
 renderPos();applyRole();lockScreen();
 })();
 </script>
