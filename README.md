@@ -65,6 +65,13 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Saat tutup shift:** WhatsApp terbuka otomatis dengan laporan berisi penjualan per metode bayar, daftar pengeluaran, hitungan kas laci, selisih, dan hasil bersih shift. Kasir tinggal menekan **Kirim**. Tombol **Kirim ke WhatsApp** di layar rekap bisa dipakai kalau perlu mengirim ulang.
 - Pengeluaran juga masuk ke sheet `Pengeluaran` di spreadsheet dan tampil di dashboard pemilik (pengeluaran hari ini dan hasil bersih).
 
+## Aplikasi Android (APK)
+
+- Unduh dari tablet: https://github.com/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/latest/download/KasirBatangGaring.apk lalu buka file-nya. Izinkan *pasang dari sumber tidak dikenal* untuk Chrome bila diminta.
+- APK ini membuka kasir web di Chrome (Trusted Web Activity), jadi printer Bluetooth tetap jalan, data yang sudah ada di Chrome ikut terbaca, dan pembaruan web langsung ikut tanpa memasang ulang.
+- Butuh Google Chrome terpasang di tablet.
+- APK dibangun otomatis oleh GitHub Actions (`.github/workflows/apk.yml`) dari folder `android/`.
+
 ## Menyambungkan Google Spreadsheet (sekali saja, ±5 menit)
 
 1. Buat Google Spreadsheet baru, misalnya "Penjualan Batang Garing Coffee".
