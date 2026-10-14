@@ -181,6 +181,11 @@ td.r,th.r{text-align:right}
 }
 @media (min-width:861px){.cart .close-cart{display:none}}
 /* layar login & shift */
+.pin-in{text-align:center;font-size:26px;letter-spacing:.5em;font-family:var(--f-mono);padding:10px!important}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keypad button{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 0;font-size:22px;font-weight:700;font-family:var(--f-mono);color:var(--fg)}
+.keypad button:active{background:var(--brand-soft)}
+.keypad .k-ok{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-family:var(--f-ui);font-size:17px}
 .lock{position:fixed;inset:0;z-index:30;background:var(--bg);display:grid;place-items:center;padding:24px 16px;overflow-y:auto}
 .lock-card{width:min(460px,100%);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:grid;gap:16px}
 .lock-brand{display:flex;align-items:center;gap:12px}
@@ -368,7 +373,7 @@ td.r,th.r{text-align:right}
       </div>
       <div class="panel" style="display:grid;gap:12px">
         <h3 style="margin:0;font-size:16px">Pengguna & keamanan</h3>
-        <p class="hint">Setiap kasir masuk dengan password sendiri dan membuka shift dengan modal awal. Menu, laporan shift, dan pengaturan hanya bisa dibuka pemilik.</p>
+        <p class="hint">Setiap kasir masuk dengan PIN 6 angka sendiri dan membuka shift dengan modal awal. Menu, laporan shift, dan pengaturan hanya bisa dibuka pemilik.</p>
         <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Peran</th><th>Status</th><th></th></tr></thead><tbody id="userRows"></tbody></table></div>
         <div class="form-grid">
           <div class="field"><label for="sIdle">Kunci layar otomatis</label><select id="sIdle"><option value="2">Setelah 2 menit tidak dipakai</option><option value="5">Setelah 5 menit</option><option value="10">Setelah 10 menit</option><option value="30">Setelah 30 menit</option></select></div>
@@ -702,8 +707,8 @@ $("#sUi").onchange=()=>{cfg.ui=$("#sUi").value;saveCfg();applyZoom();toast("Ukur
 $("#sIdle").onchange=()=>{cfg.idle=+$("#sIdle").value;saveCfg();resetIdle();toast("Kunci otomatis disimpan")};
 function renderUsers(){
   $("#userRows").innerHTML=users.map(u=>`<tr><td><b>${esc(u.name)}</b>${me&&u.id===me.id?" (Anda)":""}</td><td>${u.role==="owner"?"Pemilik":"Kasir"}</td>
-    <td>${u.active?`<span class="pill ok">Aktif</span>`:`<span class="pill wait">Nonaktif</span>`}</td>
-    <td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-pw="${u.id}">Ganti password</button>${me&&u.id!==me.id?`<button class="btn ghost sm" data-act="${u.id}">${u.active?"Nonaktifkan":"Aktifkan"}</button>`:""}</div></td></tr>`).join("");
+    <td>${u.active?`<span class="pill ok">Aktif</span>`:`<span class="pill wait">Nonaktif</span>`}${u.pin?"":` <span class="pill wait">Belum PIN 6 angka</span>`}</td>
+    <td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-pw="${u.id}">Ganti PIN</button>${me&&u.id!==me.id?`<button class="btn ghost sm" data-act="${u.id}">${u.active?"Nonaktifkan":"Aktifkan"}</button>`:""}</div></td></tr>`).join("");
   $("#userRows").querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>userForm(users.find(u=>u.id===b.dataset.pw)));
   $("#userRows").querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const u=users.find(x=>x.id===b.dataset.act);
     if(u.active&&u.role==="owner"&&users.filter(x=>x.role==="owner"&&x.active).length<2)return toast("Harus ada minimal satu pemilik aktif");
@@ -712,17 +717,16 @@ function renderUsers(){
 }
 $("#addUser").onclick=()=>userForm(null);
 function userForm(u){
-  modal(`<h3>${u?"Ganti password "+esc(u.name):"Tambah kasir"}</h3>
+  modal(`<h3>${u?"Ganti PIN "+esc(u.name):"Tambah kasir"}</h3>
     ${u?"":`<div class="field"><label for="uName">Nama</label><input id="uName" placeholder="mis. Rina" autocomplete="off"></div>
     <div class="field"><label for="uRole">Peran</label><select id="uRole"><option value="kasir">Kasir</option><option value="owner">Pemilik (akses penuh)</option></select></div>`}
-    <div class="field"><label for="uPw">Password baru</label><input id="uPw" type="password" autocomplete="new-password" placeholder="minimal 4 karakter"></div>
-    <div class="field"><label for="uPw2">Ulangi password</label><input id="uPw2" type="password" autocomplete="new-password"></div>
+    ${pinField("uPw","PIN baru (6 angka)")}${pinField("uPw2","Ulangi PIN")}
     <p class="err" id="uErr"></p>
     <div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn primary" id="uSave">Simpan</button></div>`);
-  ($("#uName")||$("#uPw")).focus();
+  onlyDigits();($("#uName")||$("#uPw")).focus();
   $("#uSave").onclick=async()=>{const pw=$("#uPw").value,pw2=$("#uPw2").value,err=t=>$("#uErr").textContent=t;
-    if(pw.length<4)return err("Password minimal 4 karakter");if(pw!==pw2)return err("Kedua password tidak sama");
-    if(u){u.salt=uid()+uid();u.hash=await hashPw(pw,u.salt);saveUsers();closeModal();return toast(`Password ${u.name} diganti`)}
+    if(!isPin(pw))return err(PIN_ERR);if(pw!==pw2)return err("Kedua PIN tidak sama");
+    if(u){u.salt=uid()+uid();u.hash=await hashPw(pw,u.salt);u.pin=true;saveUsers();closeModal();renderUsers();return toast(`PIN ${u.name} diganti`)}
     const name=$("#uName").value.trim();if(!name)return err("Nama wajib diisi");
     if(users.some(x=>x.name.toLowerCase()===name.toLowerCase()))return err("Nama sudah dipakai");
     users.push(await makeUser(name,$("#uRole").value,pw));saveUsers();closeModal();renderUsers();toast(`${name} ditambahkan`)};
@@ -736,8 +740,12 @@ const openShift=()=>shifts.find(s=>!s.end);
 const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
 async function hashPw(pw,salt){const enc=new TextEncoder();const k=await crypto.subtle.importKey("raw",enc.encode(pw),"PBKDF2",false,["deriveBits"]);
   return b64(await crypto.subtle.deriveBits({name:"PBKDF2",salt:enc.encode(salt),iterations:120000,hash:"SHA-256"},k,256))}
-async function makeUser(name,role,pw){const salt=uid()+uid();return{id:uid(),name,role,salt,hash:await hashPw(pw,salt),active:true}}
+async function makeUser(name,role,pw){const salt=uid()+uid();return{id:uid(),name,role,salt,hash:await hashPw(pw,salt),active:true,pin:true}}
 const checkPw=async(u,pw)=>(await hashPw(pw,u.salt))===u.hash;
+// PIN login: tepat 6 angka
+const isPin=v=>/^\d{6}$/.test(v),PIN_ERR="PIN harus tepat 6 angka";
+const pinField=(id,label)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="••••••"></div>`;
+const onlyDigits=()=>document.querySelectorAll(".pin-in").forEach(i=>i.addEventListener("input",()=>{if(!i.dataset.free)i.value=i.value.replace(/\D/g,"").slice(0,6)}));
 const recoveryCode=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(8));return [...r].map(x=>a[x%a.length]).join("").replace(/(.{4})/,"$1-")};
 
 function lockShell(inner){$("#lock").innerHTML=`<div class="lock-card" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" style="margin:0">BG</div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
@@ -748,50 +756,67 @@ function lockScreen(){
   const os=openShift(),active=users.filter(u=>u.active);let pick=os?active.find(u=>u.id===os.userId):active.length===1?active[0]:null;
   lockShell(`${os?`<div class="banner">Shift <b>${esc(os.name)}</b> sedang berjalan sejak ${new Date(os.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}. Hanya ${esc(os.name)} atau pemilik yang bisa masuk.</div>`:""}
     <div><div class="field"><label>Siapa yang bertugas?</label></div><div class="users" style="margin-top:8px">${active.map(u=>`<button class="user-btn" data-u="${u.id}" aria-pressed="${pick&&pick.id===u.id}"><span class="avatar">${esc(initials(u.name))}</span>${esc(u.name)}<small>${u.role==="owner"?"Pemilik":"Kasir"}</small></button>`).join("")}</div></div>
-    <div class="field"><label for="lPw">Password</label><input id="lPw" type="password" autocomplete="current-password" placeholder="Masukkan password"></div>
+    <div class="field"><label for="lPw">PIN (6 angka)</label><input id="lPw" class="pin-in" type="password" inputmode="none" autocomplete="off" placeholder="••••••"></div>
+    <div class="keypad" id="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")}<button data-k="del" aria-label="Hapus">⌫</button><button data-k="0">0</button><button class="k-ok" id="lGo">Masuk</button></div>
     <p class="err" id="lErr"></p>
-    <button class="btn primary" id="lGo">Masuk</button>
-    <button class="linkbtn" id="lForgot">Lupa password pemilik?</button>`);
+    <button class="linkbtn" id="lKbd">PIN lama berisi huruf? Pakai keyboard</button>
+    <button class="linkbtn" id="lForgot">Lupa PIN pemilik?</button>`);
   document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lPw").focus()});
   const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
     if(!pick)return err("Pilih nama Anda dulu");
-    if(!(await checkPw(pick,$("#lPw").value))){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);$("#lPw").value="";return err("Password salah")}
+    if(!$("#lPw").value)return err("Masukkan PIN");
+    if(!(await checkPw(pick,$("#lPw").value))){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);$("#lPw").value="";return err("PIN salah")}
     store.set("fails",{n:0,until:0});
     const s=openShift();
     if(s&&s.userId!==pick.id&&pick.role!=="owner")return err(`Shift ${s.name} masih berjalan. Minta ${s.name} atau pemilik menutupnya dulu.`);
-    me=pick;if(s)return unlock();openShiftScreen()};
-  $("#lGo").onclick=go;$("#lPw").onkeydown=e=>{if(e.key==="Enter")go()};
+    me=pick;const next=()=>s?unlock():openShiftScreen();if(!pick.pin)return newPinScreen(next);next()};
+  let busy=false;const tryGo=async()=>{if(busy)return;busy=true;try{await go()}finally{busy=false}};
+  $("#lGo").onclick=tryGo;$("#lPw").onkeydown=e=>{if(e.key==="Enter")tryGo()};
+  $("#lPw").addEventListener("input",()=>{const i=$("#lPw");if(!i.dataset.free){i.value=i.value.replace(/\D/g,"").slice(0,6);if(i.value.length===6&&pick)tryGo()}});
+  document.querySelectorAll("#keypad [data-k]").forEach(b=>b.onclick=()=>{const i=$("#lPw"),k=b.dataset.k;$("#lErr").textContent="";
+    if(k==="del")i.value=i.value.slice(0,-1);else if(i.value.length<6||i.dataset.free)i.value+=k;
+    if(!i.dataset.free&&i.value.length===6){if(pick)tryGo();else $("#lErr").textContent="Pilih nama Anda dulu"}});
+  $("#lKbd").onclick=()=>{const i=$("#lPw");i.dataset.free=1;i.inputMode="text";i.removeAttribute("maxlength");i.focus();$("#lKbd").hidden=true};
   $("#lForgot").onclick=forgotScreen;
   if(pick)$("#lPw").focus();
 }
 function setupScreen(){
   lockShell(`<div><b style="font-size:17px">Buat akun pemilik</b><p class="hint" style="margin-top:4px">Akun ini memegang akses penuh: menu, pengaturan, kasir, dan laporan shift. Kasir lain ditambahkan setelah ini.</p></div>
     <div class="field"><label for="oName">Nama pemilik</label><input id="oName" placeholder="mis. Tengku" autocomplete="name"></div>
-    <div class="field"><label for="oPw">Password</label><input id="oPw" type="password" autocomplete="new-password" placeholder="minimal 4 karakter"></div>
-    <div class="field"><label for="oPw2">Ulangi password</label><input id="oPw2" type="password" autocomplete="new-password"></div>
+    ${pinField("oPw","PIN (6 angka)")}${pinField("oPw2","Ulangi PIN")}
     <p class="err" id="oErr"></p><button class="btn primary" id="oGo">Buat akun</button>`);
-  $("#oName").focus();
+  onlyDigits();$("#oName").focus();
   $("#oGo").onclick=async()=>{const err=t=>$("#oErr").textContent=t,name=$("#oName").value.trim(),pw=$("#oPw").value;
-    if(!name)return err("Nama wajib diisi");if(pw.length<4)return err("Password minimal 4 karakter");if(pw!==$("#oPw2").value)return err("Kedua password tidak sama");
+    if(!name)return err("Nama wajib diisi");if(!isPin(pw))return err(PIN_ERR);if(pw!==$("#oPw2").value)return err("Kedua PIN tidak sama");
     const u=await makeUser(name,"owner",pw);const code=recoveryCode();const rs=uid()+uid();
     store.set("recovery",{salt:rs,hash:await hashPw(code.replace("-",""),rs)});users.push(u);saveUsers();me=u;
-    lockShell(`<div><b style="font-size:17px">Simpan kode pemulihan ini</b><p class="hint" style="margin-top:4px">Kalau lupa password pemilik, kode ini satu-satunya cara masuk lagi. Tulis di kertas dan simpan di tempat aman. Kode ini tidak akan ditampilkan lagi.</p></div>
+    lockShell(`<div><b style="font-size:17px">Simpan kode pemulihan ini</b><p class="hint" style="margin-top:4px">Kalau lupa PIN pemilik, kode ini satu-satunya cara masuk lagi. Tulis di kertas dan simpan di tempat aman. Kode ini tidak akan ditampilkan lagi.</p></div>
       <div class="code">${code}</div><button class="btn primary" id="oDone">Sudah saya catat</button>`);
     $("#oDone").onclick=openShiftScreen};
 }
 function forgotScreen(){
-  lockShell(`<div><b style="font-size:17px">Atur ulang password pemilik</b><p class="hint" style="margin-top:4px">Masukkan kode pemulihan yang dicatat saat akun pemilik dibuat.</p></div>
+  lockShell(`<div><b style="font-size:17px">Atur ulang PIN pemilik</b><p class="hint" style="margin-top:4px">Masukkan kode pemulihan yang dicatat saat akun pemilik dibuat.</p></div>
     <div class="field"><label for="fCode">Kode pemulihan</label><input id="fCode" autocomplete="off" placeholder="XXXX-XXXX" style="text-transform:uppercase"></div>
-    <div class="field"><label for="fPw">Password baru pemilik</label><input id="fPw" type="password" autocomplete="new-password"></div>
+    ${pinField("fPw","PIN baru pemilik (6 angka)")}
     <p class="err" id="fErr"></p><div class="row"><button class="btn ghost" id="fBack">Kembali</button><button class="btn primary" id="fGo">Atur ulang</button></div>`);
-  $("#fBack").onclick=lockScreen;
+  onlyDigits();$("#fBack").onclick=lockScreen;
   $("#fGo").onclick=async()=>{const err=t=>$("#fErr").textContent=t,rec=store.get("recovery",null),f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err("Terlalu banyak percobaan salah. Tunggu sebentar.");
     if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);return err("Kode pemulihan salah")}
-    if($("#fPw").value.length<4)return err("Password minimal 4 karakter");
-    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);saveUsers();
-    toast(`Password ${o.name} sudah diganti`);lockScreen()};
+    if(!isPin($("#fPw").value))return err(PIN_ERR);
+    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);o.pin=true;saveUsers();
+    toast(`PIN ${o.name} sudah diganti`);lockScreen()};
+}
+// Akun lama (password sebelum aturan PIN): wajib ganti ke PIN 6 angka setelah masuk.
+function newPinScreen(next){
+  lockShell(`<div><b style="font-size:17px">Buat PIN 6 angka</b><p class="hint" style="margin-top:4px">Mulai sekarang masuk kasir memakai PIN 6 angka. Buat PIN baru untuk ${esc(me.name)}.</p></div>
+    ${pinField("nPw","PIN baru (6 angka)")}${pinField("nPw2","Ulangi PIN")}
+    <p class="err" id="nErr"></p><button class="btn primary" id="nGo">Simpan PIN</button>`);
+  onlyDigits();$("#nPw").focus();
+  $("#nGo").onclick=async()=>{const pw=$("#nPw").value,err=t=>$("#nErr").textContent=t;
+    if(!isPin(pw))return err(PIN_ERR);if(pw!==$("#nPw2").value)return err("Kedua PIN tidak sama");
+    me.salt=uid()+uid();me.hash=await hashPw(pw,me.salt);me.pin=true;saveUsers();toast("PIN baru disimpan");next()};
 }
 function openShiftScreen(){
   const last=shifts.filter(s=>s.end).slice(-1)[0];

@@ -22,14 +22,15 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 
 ## Login kasir & shift
 
-- **Pertama kali dibuka:** buat akun pemilik (nama + password). Aplikasi lalu menampilkan **kode pemulihan** satu kali. Catat kode itu; hanya kode itu yang bisa mengatur ulang password pemilik kalau lupa.
-- **Tambah kasir:** Atur → Pengguna & keamanan → **+ Tambah kasir**. Setiap kasir punya password sendiri.
-- **Mulai shift:** kasir memilih namanya, memasukkan password, lalu mengisi modal awal di laci. Pembayaran hanya bisa diterima saat ada shift terbuka. Nama kasir tercetak di struk.
+- **Pertama kali dibuka:** buat akun pemilik (nama + PIN 6 angka). Aplikasi lalu menampilkan **kode pemulihan** satu kali. Catat kode itu; hanya kode itu yang bisa mengatur ulang PIN pemilik kalau lupa.
+- **Tambah kasir:** Atur → Pengguna & keamanan → **+ Tambah kasir**. Setiap kasir punya PIN 6 angka sendiri.
+- **Mulai shift:** kasir memilih namanya, mengetik PIN 6 angka di tombol angka (langsung masuk begitu angka ke-6 diketik), lalu mengisi modal awal di laci. Pembayaran hanya bisa diterima saat ada shift terbuka. Nama kasir tercetak di struk.
 - **Tutup shift:** ketuk nama di pojok kiri bawah → **Tutup shift**. Kasir menghitung uang di laci tanpa melihat angka sistem, lalu aplikasi menampilkan selisih kas dan bisa mencetak rekap shift.
 - **Hak akses:** kasir hanya bisa membuka Kasir dan Laporan. Menu, Pengaturan, dan Riwayat shift hanya untuk pemilik.
-- **Kunci otomatis:** layar terkunci setelah tidak dipakai (default 5 menit, bisa diatur). Salah password 5 kali membuat login terkunci 1 menit.
+- **PIN 6 angka:** akun yang dibuat sebelum aturan PIN tetap bisa masuk dengan password lamanya (tombol *Pakai keyboard* bila berisi huruf), lalu langsung diminta membuat PIN 6 angka.
+- **Kunci otomatis:** layar terkunci setelah tidak dipakai (default 5 menit, bisa diatur). Salah PIN 5 kali membuat login terkunci 1 menit.
 - Rekap shift ikut dikirim ke sheet `Shift` di spreadsheet dan tampil di dashboard pemilik. Kalau Apps Script sudah terpasang sebelumnya, tempel ulang `apps-script/Code.gs` lalu **Deploy → Manage deployments → Edit → New version**.
-- Password disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
+- PIN disimpan sebagai hash (PBKDF2) di tablet, bukan teks asli. Ini pengaman akses kasir, bukan enkripsi data: orang yang menguasai tablet dan paham teknis tetap bisa membaca data browser.
 
 ## Meja & pesanan belum dibayar
 
