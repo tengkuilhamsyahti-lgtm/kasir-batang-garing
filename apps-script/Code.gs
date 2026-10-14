@@ -67,6 +67,16 @@ function doPost(e) {
       });
       if (rowsM.length) sm.getRange(sm.getLastRow() + 1, 1, rowsM.length, rowsM[0].length).setValues(rowsM);
     }
+    const ks = data.konsumsi || [];
+    if (ks.length) {
+      const sk = sheet_('Konsumsi', ['ID', 'Waktu', 'Tanggal', 'Untuk', 'Menu', 'Jumlah item', 'Nilai jual', 'HPP', 'Keterangan', 'Dicatat oleh']);
+      const adaK = new Set(sk.getLastRow() > 1 ? sk.getRange(2, 1, sk.getLastRow() - 1, 1).getValues().flat().map(String) : []);
+      const rowsK = ks.filter(x => !adaK.has(String(x.id))).map(x => {
+        const d = new Date(x.time);
+        return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.who, x.items.map(i => i.qty + 'x ' + i.name).join(', '), x.items.reduce((a, i) => a + i.qty, 0), x.value, x.hpp || 0, x.note || '', x.by || ''];
+      });
+      if (rowsK.length) sk.getRange(sk.getLastRow() + 1, 1, rowsK.length, rowsK[0].length).setValues(rowsK);
+    }
     if (data.stock && data.stock.length) {
       const ss = sheet_('Sisa Stok', ['Bahan', 'Sisa', 'Satuan', 'Batas menipis', 'Harga per satuan', 'Nilai stok', 'Status', 'Diperbarui']);
       if (ss.getLastRow() > 1) ss.getRange(2, 1, ss.getLastRow() - 1, 8).clearContent();
@@ -114,6 +124,9 @@ function doGet(e) {
     .filter(r => (r[2] instanceof Date ? Utilities.formatDate(r[2], tz, 'yyyy-MM-dd') : r[2]) === today) : [];
   const keluar = expHari.reduce((a, r) => a + Number(r[7]), 0);
   const hpp = hari.reduce((a, r) => a + (Number(r[12]) || 0), 0);
+  const shK = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Konsumsi');
+  const konsHari = shK && shK.getLastRow() > 1 ? shK.getRange(2, 1, shK.getLastRow() - 1, 8).getValues()
+    .filter(r => (r[2] instanceof Date ? Utilities.formatDate(r[2], tz, 'yyyy-MM-dd') : r[2]) === today) : [];
   const laba = hari.reduce((a, r) => a + Number(r[5]), 0) - hpp;
   const shSisa = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sisa Stok');
   const menipis = shSisa && shSisa.getLastRow() > 1 ? shSisa.getRange(2, 1, shSisa.getLastRow() - 1, 7).getValues().filter(r => r[0] && r[6] !== 'Aman') : [];
@@ -133,7 +146,9 @@ h2{font-size:15px;margin:0 0 8px}</style>
 <div class="c"><div class="l">Pengeluaran hari ini</div><div class="v">${rp(keluar)}</div></div>
 <div class="c"><div class="l">Bersih</div><div class="v">${rp(omzet - keluar)}</div></div>
 <div class="c"><div class="l">HPP hari ini</div><div class="v">${rp(hpp)}</div></div>
-<div class="c"><div class="l">Laba kotor</div><div class="v">${rp(laba)}</div></div></div>
+<div class="c"><div class="l">Laba kotor</div><div class="v">${rp(laba)}</div></div>
+<div class="c"><div class="l">Konsumsi staf (nilai jual)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[6]), 0))}</div></div>
+<div class="c"><div class="l">Konsumsi staf (HPP)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[7]), 0))}</div></div></div>
 <div class="c" style="margin-bottom:12px"><h2>Stok menipis</h2><table>${menipis.map(r => `<tr><td>${r[0]} · ${r[6]}</td><td style="color:#c8501e">${Number(r[1]).toLocaleString('id-ID')} ${r[2]}</td></tr>`).join('') || '<tr><td>Semua stok aman</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${n}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${r[1]} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>

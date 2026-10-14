@@ -87,6 +87,8 @@ button{cursor:pointer}
 .cart-meta{display:flex;gap:8px;align-items:center;padding:0 18px 10px;flex-wrap:wrap}
 .tablebtn{border:1.5px dashed var(--brand);background:var(--brand-soft);color:var(--brand);border-radius:10px;padding:8px 12px;font-weight:700}
 .tablebtn.set{border-style:solid}
+.konsbtn{margin-left:auto}
+.pill.kons{background:var(--brand-soft);color:var(--brand)}
 .pill.unpaid{background:var(--chili);color:#fff;letter-spacing:.04em}
 .badge{background:var(--chili);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;font-weight:800;padding:0 6px;margin-left:6px}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;max-height:46vh;overflow:auto;padding:2px}
@@ -235,7 +237,7 @@ td.r,th.r{text-align:right}
       </div>
       <aside class="cart" id="cart" aria-label="Pesanan">
         <div class="cart-h"><h2>Pesanan</h2><div class="row" style="align-items:center"><span class="order-no" id="orderNo"></span><button class="btn ghost sm close-cart" id="closeCart">Tutup</button></div></div>
-        <div class="cart-meta"><button class="tablebtn" id="tableBtn">Pilih meja</button><span class="pill unpaid" id="unpaidTag" hidden>BELUM BAYAR</span></div>
+        <div class="cart-meta"><button class="tablebtn" id="tableBtn">Pilih meja</button><span class="pill unpaid" id="unpaidTag" hidden>BELUM BAYAR</span><button class="btn ghost sm konsbtn" id="konsBtn" disabled title="Menu untuk owner atau pegawai, tidak dibayar">Konsumsi staf</button></div>
         <div class="lines" id="lines"></div>
         <div class="sum">
           <div><span>Subtotal</span><span class="num" id="subtotal">Rp0</span></div>
@@ -306,6 +308,10 @@ td.r,th.r{text-align:right}
         <div class="kpi"><div class="l">Belum terkirim</div><div class="v num" id="kPending">0</div></div>
       </div>
       <div class="panel"><h3 style="margin:0 0 12px;font-size:16px">Menu terlaris</h3><div class="bars" id="bars"></div></div>
+      <div class="panel table-wrap" id="konsPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Konsumsi owner &amp; pegawai</h3>
+        <select id="konsRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="today">Hari ini</option><option value="7">7 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
+        <div class="kpis" style="margin-bottom:12px"><div class="kpi"><div class="l">Jumlah item</div><div class="v num" id="kKonsQty">0</div></div><div class="kpi"><div class="l">Nilai harga jual</div><div class="v num" id="kKonsVal">Rp0</div></div><div class="kpi"><div class="l">Modal bahan (HPP)</div><div class="v num" id="kKonsHpp">Rp0</div></div></div>
+        <table><thead><tr><th>Nama</th><th class="r">Kali</th><th class="r">Item</th><th class="r">Nilai jual</th><th class="r">HPP</th><th></th></tr></thead><tbody id="konsRows"></tbody></table></div>
       <div class="panel table-wrap" id="usePanel"><h3 style="margin:0 0 12px;font-size:16px">Stok keluar hari ini</h3><table>
         <thead><tr><th>Bahan</th><th class="r">Keluar</th><th class="r">Sisa</th><th>Status</th></tr></thead>
         <tbody id="useRows"></tbody>
@@ -402,6 +408,7 @@ let cfg=Object.assign({name:"Batang Garing Coffee",addr:"",tax:0,footer:"Terima 
 let cart=[];let cat="Semua";let q="";
 let orders=store.get("orders",[]);const saveOrders=()=>store.set("orders",orders);
 let cur={id:null,table:"",name:""};
+let kons=store.get("kons",[]);const saveKons=()=>store.set("kons",kons);
 // Jam berjalan di layar kasir
 const TZ=(()=>{const o=-new Date().getTimezoneOffset()/60;return o===7?"WIB":o===8?"WITA":o===9?"WIT":""})();
 const jam=(d,sec)=>d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",...(sec?{second:"2-digit"}:{})}).replace(/\./g,":");
@@ -465,7 +472,7 @@ function renderCart(){
   const t=totals();
   $("#subtotal").textContent=rp(t.sub);$("#tax").textContent=rp(t.tax);$("#total").textContent=rp(t.total);
   $("#taxRow").hidden=!(+cfg.tax);$("#taxLabel").textContent=`Pajak ${cfg.tax}%`;
-  $("#payBtn").disabled=!cart.length;$("#holdBtn").disabled=!cart.length;
+  $("#payBtn").disabled=!cart.length;$("#holdBtn").disabled=!cart.length;$("#konsBtn").disabled=!cart.length;
   $("#tableBtn").textContent=cur.table?tableLabel(cur.table)+(cur.name?" · "+cur.name:""):"Pilih meja";$("#tableBtn").classList.toggle("set",!!cur.table);
   $("#unpaidTag").hidden=!cur.id;$("#holdBtn").textContent=cur.id?"Simpan ubahan":"Simpan";
   $("#ordersCount").hidden=!orders.length;$("#ordersBtn").classList.toggle("danger",!!orders.length);$("#ordersBtn").classList.toggle("ghost",!orders.length);$("#ordersCount").textContent=orders.length;
@@ -588,11 +595,12 @@ async function syncPending(manual){
   const pendS=shifts.filter(s=>s.end&&!s.synced);
   const pendE=exps.filter(x=>!x.synced&&shifts.some(s=>s.id===x.shift&&s.end));
   const pendM=moves.filter(x=>!x.synced);
+  const pendK=kons.filter(x=>!x.synced);
   if(!cfg.sheet){if(manual)toast("Isi dulu URL Web App di Pengaturan");return}
-  if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length){if(manual)toast("Semua transaksi sudah terkirim");return}
+  if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length&&!pendK.length){if(manual)toast("Semua transaksi sudah terkirim");return}
   try{
-    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost}))})});
-    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
+    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost}))})});
+    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
   }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
   if(!$("#v-report").hidden)renderReport();
 }
@@ -657,7 +665,7 @@ function renderReport(){
   $("#trxRows").innerHTML=list.slice().reverse().map(t=>`<tr><td class="num">${t.no}</td><td class="num">${new Date(t.time).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</td><td>${t.method}</td><td class="r num">${rp(t.total)}</td>
     <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><button class="btn ghost sm" data-r="${t.no}">Struk</button></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
   $("#trxRows").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>showReceipt(trx.find(t=>t.no===b.dataset.r)));
-  renderExps();
+  renderExps();renderKons();
   const isOwner=me&&me.role==="owner";$("#shiftPanel").hidden=!isOwner;
   if(isOwner){const hm=x=>x?new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Berjalan";
     $("#shiftRows").innerHTML=shifts.slice().reverse().slice(0,30).map(s=>`<tr><td>${esc(s.name)}</td><td class="num">${hm(s.start)}</td><td class="num">${hm(s.end)}</td><td class="r num">${rp(s.openCash)}</td>
@@ -819,7 +827,7 @@ function closeShiftForm(){
     const ex=exps.filter(x=>x.shift===s.id),exCash=ex.filter(x=>x.src==="Laci").reduce((a,x)=>a+x.amount,0);
     Object.assign(s,{end:new Date().toISOString(),counted:+raw,cashSales:cash,nonCash:list.reduce((a,t)=>a+t.total,0)-cash,byMethod,trxCount:list.length,
       expTotal:ex.reduce((a,x)=>a+x.amount,0),expCash:exCash,expected:s.openCash+cash-exCash,closedBy:me.name,
-      unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0),hpp:list.reduce((a,t)=>a+(t.hpp||0),0),usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
+      kons:konsSummary(kons.filter(k=>k.shift===s.id)),unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0),hpp:list.reduce((a,t)=>a+(t.hpp||0),0),usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
     s.diff=s.counted-s.expected;saveShifts();syncPending(false);showShiftRecap(s);
     if(waNum(cfg.wa))window.open(waLink(waNum(cfg.wa),waText(s)),"_blank","noopener")};
 }
@@ -831,6 +839,7 @@ function shiftLines(s){
     ...Object.entries(s.byMethod).map(([m,v])=>lr(m,n(v))),line,
     ...(shiftExps(s).length?["PENGELUARAN",...shiftExps(s).map(x=>lr(x.cat+(x.src==="Laci"?"":"*"),n(x.amount))),lr("Total pengeluaran",n(s.expTotal||0)),line]:[]),
     ...(s.hpp?[lr("Penjualan (tanpa pajak)",n(s.netSales)),lr("HPP",n(s.hpp)),lr("LABA KOTOR",n(s.netSales-s.hpp)),line]:[]),
+    ...(s.kons&&s.kons.qty?["KONSUMSI OWNER/PEGAWAI",...s.kons.people.map(p=>lr(`${p.who} (${p.qty})`,n(p.value))),lr("Nilai jual",n(s.kons.value)),lr("HPP konsumsi",n(s.kons.hpp)),line]:[]),
     ...(s.usage&&s.usage.length?["STOK KELUAR / SISA",...s.usage.map(u=>lr(u.name,fq(u.qty)+" / "+fq(u.left)+" "+u.unit)),line]:[]),
     lr("Modal awal",n(s.openCash)),lr("Penjualan tunai",n(s.cashSales)),lr("Pengeluaran dr laci",n(s.expCash||0)),
     lr("Seharusnya di laci",n(s.expected)),lr("Uang dihitung",n(s.counted)),lr("SELISIH",(s.diff>0?"+":"")+n(s.diff)),line,lr("Ditutup oleh",s.closedBy),...(shiftExps(s).some(x=>x.src!=="Laci")?["* bukan dari laci kasir"]:[])];
@@ -841,6 +850,7 @@ function showShiftRecap(s){
     <div class="recap"><div><span>Transaksi</span><span>${s.trxCount}</span></div>
     ${Object.entries(s.byMethod).map(([m,v])=>`<div><span>${esc(m)}</span><span>${rp(v)}</span></div>`).join("")}
     <div><span>Pengeluaran (${shiftExps(s).length})</span><span>${rp(s.expTotal||0)}</span></div>
+    ${s.kons&&s.kons.qty?`<div><span>Konsumsi staf (${s.kons.qty} item)</span><span>${rp(s.kons.value)}</span></div>`:""}
     ${s.hpp?`<div><span>HPP</span><span>${rp(s.hpp)}</span></div><div><span>Laba kotor</span><span>${rp(s.netSales-s.hpp)}</span></div>`:""}
     <div><span>Modal awal</span><span>${rp(s.openCash)}</span></div><div><span>Penjualan tunai</span><span>${rp(s.cashSales)}</span></div>
     <div><span>Pengeluaran dari laci</span><span>−${rp(s.expCash||0)}</span></div>
@@ -917,6 +927,44 @@ function ordersList(){
 }
 $("#ordersBtn").onclick=ordersList;
 
+// ---------- konsumsi owner & pegawai ----------
+function konsSummary(list){
+  const by={};list.forEach(k=>{const p=by[k.who]=by[k.who]||{who:k.who,times:0,qty:0,value:0,hpp:0,its:{}};p.times++;
+    k.items.forEach(i=>{p.qty+=i.qty;p.its[i.name]=(p.its[i.name]||0)+i.qty});p.value+=k.value;p.hpp+=k.hpp||0});
+  const people=Object.values(by).sort((a,b)=>b.value-a.value).map(p=>({...p,items:Object.entries(p.its).map(([n,q])=>`${q}× ${n}`).join(", ")}));
+  return{qty:people.reduce((a,p)=>a+p.qty,0),value:people.reduce((a,p)=>a+p.value,0),hpp:people.reduce((a,p)=>a+p.hpp,0),people};
+}
+$("#konsBtn").onclick=()=>{
+  if(!cart.length)return;if(!openShift()||!me)return toast("Buka shift dulu");
+  const names=[...new Set(users.filter(u=>u.active!==false).map(u=>u.name))];
+  const value=cart.reduce((a,l)=>a+l.price*l.qty,0);
+  modal(`<h3>Konsumsi owner / pegawai</h3><p class="hint">Menu ini tidak dibayar dan tidak masuk omzet. Stok bahan tetap berkurang dan tercatat atas nama orang yang mengonsumsi.</p>
+    <div class="recap">${cart.map(l=>`<div><span>${l.qty}× ${esc(l.name)}</span><span>${rp(l.price*l.qty)}</span></div>`).join("")}<div><b>Nilai harga jual</b><b>${rp(value)}</b></div></div>
+    <div class="field"><label>Untuk siapa</label><div class="methods" id="kWho" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))">${names.map(n=>`<button data-w="${esc(n)}" aria-pressed="${n===me.name}">${esc(n)}</button>`).join("")}<button data-w="" aria-pressed="false">Lainnya…</button></div></div>
+    <div class="field" id="kOtherBox" hidden><label for="kOther">Nama</label><input id="kOther" placeholder="mis. Budi (pegawai harian)"></div>
+    <div class="field"><label for="kNote">Keterangan (opsional)</label><input id="kNote" placeholder="mis. makan siang, tes resep"></div>
+    <p class="err" id="kErr"></p><div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn primary" id="kSave">Catat konsumsi</button></div>`);
+  let who=me.name;
+  document.querySelectorAll("#kWho [data-w]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#kWho [data-w]").forEach(x=>x.setAttribute("aria-pressed",x===b));who=b.dataset.w;$("#kOtherBox").hidden=!!who;if(!who)$("#kOther").focus()});
+  $("#kSave").onclick=()=>{const w=who||$("#kOther").value.trim();if(!w)return $("#kErr").textContent="Isi nama yang mengonsumsi";
+    const k={id:uid(),time:new Date().toISOString(),shift:openShift().id,who:w,note:$("#kNote").value.trim(),by:me.name,cashier:me.name,items:cart.map(l=>({...l})),value,synced:false};
+    applySale(k,"Konsumsi","Konsumsi "+w+(k.note?" · "+k.note:""));kons.push(k);saveKons();
+    if(cur.id){orders=orders.filter(o=>o.id!==cur.id);saveOrders()}cart=[];cur={id:null,table:"",name:""};
+    closeModal();$("#cart").classList.remove("open");renderPos();toast(`Konsumsi ${w} dicatat (${rp(value)})`)};
+};
+function konsRange(){const v=$("#konsRange").value,d=new Date(),day=new Date(d.toDateString());
+  if(v==="7")return[new Date(day-6*864e5),null];if(v==="month")return[new Date(d.getFullYear(),d.getMonth(),1),null];
+  if(v==="lastmonth")return[new Date(d.getFullYear(),d.getMonth()-1,1),new Date(d.getFullYear(),d.getMonth(),1)];return[day,null]}
+function renderKons(){
+  const [from,to]=konsRange(),list=kons.filter(k=>{const t=new Date(k.time);return t>=from&&(!to||t<to)}),sm=konsSummary(list);
+  $("#kKonsQty").textContent=sm.qty;$("#kKonsVal").textContent=rp(sm.value);$("#kKonsHpp").textContent=rp(sm.hpp);
+  $("#konsRows").innerHTML=sm.people.map(p=>`<tr><td><b>${esc(p.who)}</b><div class="hint">${esc(p.items)}</div></td><td class="r num">${p.times}</td><td class="r num">${p.qty}</td><td class="r num">${rp(p.value)}</td><td class="r num">${rp(p.hpp)}</td>
+    <td class="r"><button class="btn ghost sm" data-kd="${esc(p.who)}">Rincian</button></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada konsumsi owner atau pegawai di periode ini.</td></tr>`;
+  $("#konsRows").querySelectorAll("[data-kd]").forEach(b=>b.onclick=()=>{const w=b.dataset.kd,t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+    modal(`<h3>Konsumsi ${esc(w)}</h3><div class="table-wrap"><table><thead><tr><th>Waktu</th><th>Menu</th><th class="r">Nilai</th><th>Dicatat</th></tr></thead><tbody>${list.filter(k=>k.who===w).reverse().map(k=>`<tr><td class="num">${t(k.time)}</td><td>${esc(k.items.map(i=>i.qty+"× "+i.name).join(", "))}${k.note?`<div class="hint">${esc(k.note)}</div>`:""}</td><td class="r num">${rp(k.value)}</td><td>${esc(k.by)}</td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost" data-close>Tutup</button></div>`)});
+}
+$("#konsRange").onchange=renderKons;
+
 // ---------- stok bahan & HPP ----------
 const num=v=>{v=String(v).trim().replace(/\s/g,"");if(v.includes(","))v=v.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(v))v=v.replace(/\./g,"");return Math.max(0,parseFloat(v)||0)};
 const rpu=c=>c>=100?rp(c):"Rp"+(+c||0).toLocaleString("id-ID",{maximumFractionDigits:2});
@@ -928,19 +976,19 @@ const isLow=b=>b.stock<=(+b.min||0);
 const stockPill=b=>b.stock<=0?`<span class="pill wait">Habis</span>`:isLow(b)?`<span class="pill wait">Menipis</span>`:`<span class="pill ok">Aman</span>`;
 function portions(m){if(!m.recipe||!m.recipe.length)return null;let p=Infinity;m.recipe.forEach(r=>{const b=bahan.find(x=>x.id===r.b);if(b&&r.q>0)p=Math.min(p,Math.floor(b.stock/r.q+1e-9))});return p===Infinity?null:Math.max(0,p)}
 function portionsHtml(m){const p=portions(m);return p===null?"":`<span class="stk ${p<=5?"low":""}">${p<=0?"Stok bahan habis":"Sisa "+p+" porsi"}</span>`}
-function applySale(tr){
+function applySale(tr,type="Terjual",note){
   const use={},before={};let hpp=0;
   tr.items.forEach(l=>{const m=menu.find(x=>x.id===l.id);let unit=0;
     ((m&&m.recipe)||[]).forEach(r=>{const b=bahan.find(x=>x.id===r.b);if(!b)return;unit+=r.q*b.cost;use[b.id]=(use[b.id]||0)+r.q*l.qty});
     l.hpp=Math.round(unit);hpp+=l.hpp*l.qty});
   tr.hpp=hpp;
   Object.entries(use).forEach(([id,q])=>{const b=bahan.find(x=>x.id===id);before[id]=isLow(b);b.stock=r3(b.stock-q);
-    moves.push({id:uid(),time:tr.time,bahan:id,name:b.name,unit:b.unit,qty:-r3(q),type:"Terjual",note:"Struk "+tr.no,cost:b.cost,shift:tr.shift,by:tr.cashier,synced:false})});
+    moves.push({id:uid(),time:tr.time,bahan:id,name:b.name,unit:b.unit,qty:-r3(q),type,note:note||"Struk "+tr.no,cost:b.cost,shift:tr.shift,by:tr.cashier,synced:false})});
   if(Object.keys(use).length){saveBahan();saveMoves();
     const newly=bahan.filter(b=>use[b.id]&&!before[b.id]&&isLow(b));if(newly.length)setTimeout(()=>toast("Stok menipis: "+newly.map(b=>b.name).join(", ")),900)}
 }
 function usageSince(d){const u={};moves.filter(x=>x.qty<0&&x.type!=="Opname"&&new Date(x.time)>=d).forEach(x=>u[x.bahan]=r3((u[x.bahan]||0)-x.qty));return u}
-function shiftUsage(shiftId){const u={};moves.filter(x=>x.shift===shiftId&&x.type==="Terjual").forEach(x=>u[x.bahan]=r3((u[x.bahan]||0)-x.qty));
+function shiftUsage(shiftId){const u={};moves.filter(x=>x.shift===shiftId&&(x.type==="Terjual"||x.type==="Konsumsi")).forEach(x=>u[x.bahan]=r3((u[x.bahan]||0)-x.qty));
   return Object.entries(u).map(([id,qty])=>{const b=bahan.find(x=>x.id===id)||{name:"?",unit:"",stock:0};return{name:b.name,unit:b.unit,qty,left:b.stock}})}
 function addMove(b,qty,type,note,cost){moves.push({id:uid(),time:new Date().toISOString(),bahan:b.id,name:b.name,unit:b.unit,qty:r3(qty),type,note:note||"",cost:cost??b.cost,shift:openShift()?.id||"",by:me?.name||"",synced:false});saveMoves()}
 function renderStock(){
@@ -1068,6 +1116,7 @@ function waText(s){
     ...(s.hpp?[`*HPP & laba*`,`Penjualan (tanpa pajak): ${rp(s.netSales)}`,`HPP bahan: ${rp(s.hpp)}`,`Laba kotor: *${rp(s.netSales-s.hpp)}*`,``]:[]),
     ...(s.usage&&s.usage.length?[`*Stok keluar (sisa)*`,...s.usage.map(u=>`- ${u.name}: ${fq(u.qty)} ${u.unit} (sisa ${fq(u.left)} ${u.unit})`),``]:[]),
     ...(s.low&&s.low.length?[`*Stok menipis, perlu belanja:*`,...s.low.map(x=>`- ${x}`),``]:[]),
+    ...(s.kons&&s.kons.qty?[`*Konsumsi owner & pegawai* (${s.kons.qty} item)`,...s.kons.people.map(p=>`- ${p.who}: ${p.items} (${rp(p.value)})`),`Nilai jual: ${rp(s.kons.value)} · HPP: ${rp(s.kons.hpp)}`,``]:[]),
     ...(s.unpaid&&s.unpaid.n?[`*Pesanan belum dibayar:* ${s.unpaid.n} (${rp(s.unpaid.total)})`,``]:[]),
     `*Kas laci*`,`Modal awal: ${rp(s.openCash)}`,`+ Penjualan tunai: ${rp(s.cashSales)}`,`- Pengeluaran dari laci: ${rp(s.expCash||0)}`,`= Seharusnya: ${rp(s.expected)}`,`Dihitung kasir: ${rp(s.counted)}`,
     `Selisih: *${d===0?"PAS":(d>0?"LEBIH ":"KURANG ")+rp(Math.abs(d))}*`,``,`Bersih shift (penjualan - pengeluaran): *${omzet<(s.expTotal||0)?"-":""}${rp(Math.abs(omzet-(s.expTotal||0)))}*`].join("\n");

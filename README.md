@@ -40,6 +40,13 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Cetak tagihan:** mencetak tagihan sementara untuk diantar ke meja. **Batalkan** hanya bisa dilakukan pemilik.
 - Saat tutup shift, aplikasi mengingatkan kalau masih ada pesanan belum dibayar dan menyebutkannya di laporan WhatsApp.
 
+## Konsumsi owner & pegawai
+
+- **Mencatat:** masukkan menu ke pesanan seperti biasa, lalu ketuk **Konsumsi staf** (di atas daftar pesanan). Pilih untuk siapa (nama pemilik/kasir yang terdaftar, atau *Lainnya* untuk nama lain), isi keterangan bila perlu, lalu **Catat konsumsi**.
+- Konsumsi **tidak masuk omzet** dan tidak mengubah uang laci, tetapi stok bahan tetap berkurang dan HPP-nya dihitung.
+- **Rekap per orang:** tab Laporan → *Konsumsi owner & pegawai*, bisa dilihat hari ini, 7 hari terakhir, bulan ini, atau bulan lalu. Tombol **Rincian** menampilkan setiap konsumsi orang itu.
+- Rekap tutup shift (cetak dan WhatsApp) memuat konsumsi per orang. Spreadsheet mendapat sheet `Konsumsi`, dan dashboard pemilik menampilkan konsumsi staf hari ini.
+
 ## Stok bahan & HPP
 
 - **Tambah bahan** (pemilik): tab **Stok → + Tambah bahan**. Isi nama, satuan (gram, ml, pcs), harga beli per kemasan dan isi kemasannya (misalnya Rp180.000 untuk 1000 gram), stok sekarang, dan batas stok menipis. Harga per satuan dihitung otomatis.
