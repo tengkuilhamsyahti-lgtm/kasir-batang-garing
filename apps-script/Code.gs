@@ -134,9 +134,9 @@ function doGet(e) {
   const shifts = shS && shS.getLastRow() > 1 ? shS.getRange(2, 1, shS.getLastRow() - 1, 12).getValues().slice(-5).reverse() : [];
   const html = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="60"><title>Pantau Kasir</title>
-<style>body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#f6f2ee;color:#231a14}
+<style>body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#f0f5f1;color:#13211a}
 h1{font-size:20px;margin:0 0 2px}.s{color:#5d6b62;font-size:13px;margin-bottom:16px}
-.k{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.c{background:#fff;border:1px solid #e0d5cb;border-radius:14px;padding:12px 14px}
+.k{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.c{background:#fff;border:1px solid #d2e0d6;border-radius:14px;padding:12px 14px}
 .l{font-size:12px;color:#5d6b62}.v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 table{width:100%;border-collapse:collapse;font-size:14px}td{padding:8px 4px;border-bottom:1px solid #e6ebe7}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 h2{font-size:15px;margin:0 0 8px}</style>
