@@ -60,8 +60,8 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 
 ## Uang diterima dengan nominal bebas
 
-- Di layar pembayaran tunai, ketuk kotak **Uang diterima** untuk mengetik nominal apa pun (mis. 73.500).
-- Atau hitung dari pecahan yang diserahkan pelanggan: ketuk **+1rb, +2rb, +5rb, +10rb, +20rb, +50rb, +100rb** sesuai lembaran uangnya. Rinciannya tampil di bawah, **Batal 1** menghapus pecahan terakhir, **Ulang** mengosongkan.
+- Di layar pembayaran tunai ada tombol cepat **Uang pas, Rp50.000, Rp100.000, …** dan tombol **Lainnya**.
+- Kalau pelanggan memberi nominal lain (mis. 73.500), ketuk **Lainnya** lalu ketik jumlahnya di tombol angka yang muncul (ada tombol 000 dan hapus).
 - Kembalian dihitung otomatis; tombol Selesaikan baru aktif kalau uangnya cukup.
 
 ## Nama customer & logo di struk
