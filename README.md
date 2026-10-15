@@ -151,3 +151,7 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Menu dimulai kosong. Isi lewat tab **Menu → + Tambah menu**; tombol **Simpan & tambah lagi** mempercepat input banyak menu.
 - Cadangkan menu lewat Atur → Salin data menu setelah selesai mengisi.
 - Bluetooth di iPhone/iPad belum didukung Safari; pakai tablet Android atau PC untuk printer Bluetooth.
+
+## Cetak penjualan per produk
+
+Di **Laporan → Penjualan per produk**, pilih periode (Hari ini, Kemarin, 7 hari terakhir, Bulan ini, Bulan lalu). Tabel menampilkan nama produk, jumlah terjual, dan pendapatannya, dipisah Kafe dan Ice Cream. Angka sudah dikurangi refund. Ketuk **Cetak** untuk melihat contoh struk lalu cetak ke printer thermal: daftar produk, subtotal per bagian, jumlah item, jumlah transaksi, dan TOTAL PENDAPATAN.

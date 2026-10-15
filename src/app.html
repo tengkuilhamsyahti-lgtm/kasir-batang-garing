@@ -341,7 +341,10 @@ td.r,th.r{text-align:right}
         <div class="kpis" style="margin-bottom:14px"><div class="kpi"><div class="l">Total pendapatan bersih</div><div class="v num" id="kDayTotal">Rp0</div></div><div class="kpi"><div class="l">Rata-rata per hari buka</div><div class="v num" id="kDayAvg">Rp0</div></div><div class="kpi"><div class="l" id="kDayBestL">Hari tertinggi</div><div class="v num" id="kDayBest">-</div></div></div>
         <div class="daytip" id="dayTip"></div><div class="daychart" id="dayChart" role="img" aria-label="Grafik pendapatan bersih per hari"></div><div class="dayaxis" id="dayAxis"></div>
         <table style="margin-top:14px"><thead><tr><th>Tanggal</th><th class="r">Transaksi</th><th class="r">Penjualan</th><th class="r">Refund</th><th class="r">Pendapatan bersih</th><th class="r">Kafe</th><th class="r">Ice Cream</th><th class="r">Pengeluaran</th><th class="r">Laba kotor</th></tr></thead><tbody id="dayRows"></tbody><tfoot id="dayFoot"></tfoot></table></div>
-      <div class="panel"><h3 style="margin:0 0 12px;font-size:16px">Menu terlaris</h3><div class="bars" id="bars"></div></div>
+      <div class="panel table-wrap" id="prodPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h3 style="margin:0;font-size:16px">Penjualan per produk</h3>
+        <div class="row" style="gap:8px;flex:0 0 auto"><select id="prodRange" style="width:auto;min-width:150px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="today">Hari ini</option><option value="yday">Kemarin</option><option value="7">7 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select><button class="btn primary" id="prodPrint" style="flex:0 0 auto">Cetak</button></div></div>
+        <div class="bars" id="bars" style="margin-bottom:14px"></div>
+        <table><thead><tr><th>Produk</th><th class="r">Terjual</th><th class="r">Pendapatan</th></tr></thead><tbody id="prodRows"></tbody><tfoot id="prodFoot"></tfoot></table></div>
       <div class="panel table-wrap" id="konsPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Konsumsi owner &amp; pegawai</h3>
         <select id="konsRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="today">Hari ini</option><option value="7">7 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
         <div class="kpis" style="margin-bottom:12px"><div class="kpi"><div class="l">Jumlah item</div><div class="v num" id="kKonsQty">0</div></div><div class="kpi"><div class="l">Nilai harga jual</div><div class="v num" id="kKonsVal">Rp0</div></div><div class="kpi"><div class="l">Modal bahan (HPP)</div><div class="v num" id="kKonsHpp">Rp0</div></div></div>
@@ -768,9 +771,7 @@ function renderReport(){
   const hpp=list.reduce((a,t)=>a+(t.hpp||0),0);$("#kHpp").textContent=rp(hpp);$("#kLaba").textContent=rp(list.reduce((a,t)=>a+t.sub,0)-hpp-rfToday.reduce((a,r)=>a+r.sub-r.hppBack,0));
   const used=usageSince(new Date(new Date().toDateString()));$("#usePanel").hidden=!bahan.length;
   $("#useRows").innerHTML=bahan.filter(b=>used[b.id]||isLow(b)).map(b=>`<tr><td>${esc(b.name)}</td><td class="r num">${fq(used[b.id]||0)} ${esc(b.unit)}</td><td class="r num">${fq(b.stock)} ${esc(b.unit)}</td><td>${stockPill(b)}</td></tr>`).join("")||`<tr><td colspan="4" class="hint">Belum ada stok keluar hari ini.</td></tr>`;
-  const agg={};list.forEach(t=>t.items.forEach(i=>{agg[i.name]=agg[i.name]||{q:0,v:0};agg[i.name].q+=i.qty;agg[i.name].v+=i.qty*i.price}));
-  const top=Object.entries(agg).sort((a,b)=>b[1].v-a[1].v).slice(0,6);const max=top[0]?.[1].v||1;
-  $("#bars").innerHTML=top.length?top.map(([n,o])=>`<div class="bar"><span>${esc(n)}</span><div class="track"><div class="fill" style="width:${o.v/max*100}%"></div></div><span class="val">${o.q}× · ${rp(o.v)}</span></div>`).join(""):`<p class="hint">Belum ada penjualan hari ini.</p>`;
+  renderProd();
   $("#trxRows").innerHTML=list.slice().reverse().map(t=>`<tr><td class="num">${t.no}</td><td class="num">${new Date(t.time).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</td><td>${t.method} ${refundPill(t)}</td><td class="r num">${rp(t.total)}</td>
     <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-r="${t.no}">Struk</button>${!t.sample&&trxRefund(t)<t.total?`<button class="btn ghost sm" data-rfx="${t.no}">Refund</button>`:""}</div></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
   $("#trxRows").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>showReceipt(trx.find(t=>t.no===b.dataset.r)));
@@ -1123,6 +1124,38 @@ function renderKons(){
     modal(`<h3>Konsumsi ${esc(w)}</h3><div class="table-wrap"><table><thead><tr><th>Waktu</th><th>Menu</th><th class="r">Nilai</th><th>Dicatat</th></tr></thead><tbody>${list.filter(k=>k.who===w).reverse().map(k=>`<tr><td class="num">${t(k.time)}</td><td>${esc(k.items.map(i=>i.qty+"× "+i.name).join(", "))}${k.note?`<div class="hint">${esc(k.note)}</div>`:""}</td><td class="r num">${rp(k.value)}</td><td>${esc(k.by)}</td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost" data-close>Tutup</button></div>`)});
 }
 $("#konsRange").onchange=renderKons;
+// ---------- penjualan per produk (bisa dicetak) ----------
+function prodRange(){const v=$("#prodRange").value,d=new Date(),day=new Date(d.toDateString()),DAY=864e5;
+  if(v==="yday")return[new Date(day-DAY),day,"Kemarin"];
+  if(v==="7")return[new Date(+day-6*DAY),null,"7 hari terakhir"];
+  if(v==="month")return[new Date(d.getFullYear(),d.getMonth(),1),null,"Bulan ini"];
+  if(v==="lastmonth")return[new Date(d.getFullYear(),d.getMonth()-1,1),new Date(d.getFullYear(),d.getMonth(),1),"Bulan lalu"];
+  return[day,null,"Hari ini"]}
+function prodData(){const [from,to,label]=prodRange(),inR=x=>{const t=new Date(x.time);return t>=from&&(!to||t<to)};
+  const list=trx.filter(t=>!t.sample&&inR(t)),rf=refunds.filter(inR),items=shiftItems(list,rf);
+  const end=to?new Date(to-1):new Date(),tax=list.reduce((a,t)=>a+(t.tax||0),0)-rf.reduce((a,r)=>a+(r.tax||0),0);
+  return{from,end,label,items,rfN:rf.length,trxCount:list.length,qty:items.reduce((a,i)=>a+i.qty,0),value:items.reduce((a,i)=>a+i.value,0),tax}}
+function renderProd(){const d=prodData(),max=d.items[0]?Math.max(...d.items.map(i=>i.value)):1,multi=DIVS.filter(v=>d.items.some(i=>(i.div||"Kafe")===v)).length>1;
+  const top=d.items.slice().sort((a,b)=>b.value-a.value).slice(0,6);
+  $("#bars").innerHTML=top.map(o=>`<div class="bar"><span>${esc(o.name)}</span><div class="track"><div class="fill" style="width:${o.value/max*100}%"></div></div><span class="val">${o.qty}× · ${rp(o.value)}</span></div>`).join("");
+  const row=i=>`<tr><td>${esc(i.name)}</td><td class="r num">${i.qty}</td><td class="r num">${rp(i.value)}</td></tr>`;
+  $("#prodRows").innerHTML=d.items.length?(multi?DIVS.map(v=>{const a=d.items.filter(i=>(i.div||"Kafe")===v);return a.length?`<tr><td colspan="3"><b>${v}</b></td></tr>`+a.map(row).join(""):""}).join(""):d.items.map(row).join("")):`<tr><td colspan="3" class="hint">Belum ada penjualan di periode ini.</td></tr>`;
+  $("#prodFoot").innerHTML=d.items.length?`<tr><th>Total</th><th class="r num">${d.qty}</th><th class="r num">${rp(d.value)}</th></tr>`:"";
+  $("#prodPrint").disabled=!d.items.length}
+function prodLines(){const d=prodData(),W=+cfg.paper,line="-".repeat(W),n=v=>Math.round(v).toLocaleString("id-ID");
+  const lr=(l,r)=>{l=String(l);r=String(r);const sp=W-l.length-r.length;return sp>=1?l+" ".repeat(sp)+r:l.slice(0,W-r.length-1)+" "+r};
+  const center=x=>{x=String(x).slice(0,W);return " ".repeat(Math.floor((W-x.length)/2))+x};
+  const tg=x=>x.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}),same=d.from.toDateString()===d.end.toDateString();
+  const itemLines=arr=>arr.flatMap(i=>{const l=`${i.qty} ${i.name}`;return l.length+n(i.value).length+1<=W?[lr(l,n(i.value))]:[...wrap(l,W),lr("",n(i.value))]});
+  const multi=DIVS.filter(v=>d.items.some(i=>(i.div||"Kafe")===v)).length>1;
+  return[center(cfg.name),center("LAPORAN PENJUALAN PRODUK"),center(same?tg(d.from):`${tg(d.from)} - ${tg(d.end)}`),line,lr("Jml Produk","Total"),line,
+    ...(multi?DIVS.flatMap(v=>{const a=d.items.filter(i=>(i.div||"Kafe")===v);return a.length?[`[${v}]`,...itemLines(a),lr(`Subtotal ${v}`,n(a.reduce((s,i)=>s+i.value,0)))]:[]}):itemLines(d.items)),line,
+    lr("Jumlah terjual",d.qty+" item"),lr("Transaksi",d.trxCount),lr("TOTAL PENDAPATAN",n(d.value)),...(d.tax?[lr("Pajak",n(d.tax)),lr("TOTAL + PAJAK",n(d.value+d.tax))]:[]),line,
+    lr("Dicetak",new Date().toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})),lr("Oleh",me?me.name:"-"),...(d.rfN?["Sudah dikurangi refund"]:[])]}
+$("#prodRange").onchange=renderProd;
+$("#prodPrint").onclick=()=>{const L=prodLines();
+  modal(`<h3>Laporan penjualan produk</h3><div class="receipt">${esc(L.join("\n"))}</div><div class="row"><button class="btn ghost" data-close>Tutup</button><button class="btn primary" id="prodGo">Cetak</button></div>`);
+  $("#prodGo").onclick=()=>printLines(L)};
 
 // ---------- pendapatan per hari ----------
 const dkey=x=>{const d=new Date(x);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -1407,7 +1440,7 @@ function renderRefunds(){
 $("#addRefund").onclick=refundPick;
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-15-24";
+const BUILD="2026-10-15-25";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
