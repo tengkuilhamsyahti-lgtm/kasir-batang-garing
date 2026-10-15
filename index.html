@@ -63,6 +63,10 @@ button{cursor:pointer}
 .clock small{font-size:12px;color:var(--muted);font-weight:600;margin-left:4px}
 .search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
 .search input{border:0;background:none;outline:0;padding:11px 0;width:100%}
+.divtabs{display:inline-flex;gap:4px;padding:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;margin-bottom:10px}
+.divtabs button{border:0;background:none;border-radius:10px;padding:9px 18px;font-weight:700;font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.divtabs button[aria-selected="true"]{background:var(--surface);color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.divtabs .n{font-size:11px;background:var(--brand-soft);color:var(--brand);border-radius:999px;padding:1px 7px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -260,6 +264,7 @@ td.r,th.r{text-align:right}
           <button class="btn ghost sm" id="quickPrinter" title="Printer struk"><span class="status-dot" id="qpDot"></span><span id="qpText">Sambung printer</span></button>
           <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Cari menu…" autocomplete="off"></label>
         </div>
+        <div class="divtabs" role="tablist" aria-label="Bagian"></div>
         <div class="chips" id="cats" role="toolbar" aria-label="Kategori"></div>
         <div class="grid" id="grid"></div>
       </div>
@@ -286,7 +291,7 @@ td.r,th.r{text-align:right}
   <section class="view" id="v-menu" hidden>
     <div class="page"><div class="page-in">
       <div class="row" style="justify-content:space-between;align-items:end">
-        <div><h1>Daftar Menu</h1><p class="lead">Ketuk Ubah untuk mengganti harga atau resep. Resep (bahan per porsi) dipakai untuk memotong stok dan menghitung HPP. Matikan "Tersedia" kalau menu sedang habis.</p></div>
+        <div><div class="divtabs" role="tablist" aria-label="Bagian"></div><h1>Daftar Menu <span id="menuDivT"></span></h1><p class="lead">Ketuk Ubah untuk mengganti harga atau resep. Resep (bahan per porsi) dipakai untuk memotong stok dan menghitung HPP. Matikan "Tersedia" kalau menu sedang habis.</p></div>
         <button class="btn primary" id="addItem">+ Tambah menu</button>
       </div>
       <div class="panel table-wrap"><table>
@@ -300,7 +305,7 @@ td.r,th.r{text-align:right}
   <section class="view" id="v-stock" hidden>
     <div class="page"><div class="page-in">
       <div class="row" style="justify-content:space-between;align-items:end">
-        <div><h1>Stok Bahan</h1><p class="lead">Stok berkurang otomatis setiap menu terjual, sesuai resep di halaman Menu. Catat barang datang lewat Stok masuk.</p></div>
+        <div><div class="divtabs" role="tablist" aria-label="Bagian"></div><h1 id="stockTitle">Stok Bahan</h1><p class="lead" id="stockLead">Stok berkurang otomatis setiap menu terjual, sesuai resep di halaman Menu. Catat barang datang lewat Stok masuk.</p></div>
         <div class="row"><button class="btn ghost" id="stockIn">Stok masuk</button><button class="btn primary" id="addBahan">+ Tambah bahan</button></div>
       </div>
       <div class="kpis">
@@ -330,6 +335,8 @@ td.r,th.r{text-align:right}
       <div class="kpis">
         <div class="kpi"><div class="l">Omzet bersih</div><div class="v num" id="kOmzet">Rp0</div></div>
         <div class="kpi"><div class="l">Refund</div><div class="v num" id="kRefund">Rp0</div></div>
+        <div class="kpi"><div class="l">Penjualan Kafe</div><div class="v num" id="kDivKafe">Rp0</div></div>
+        <div class="kpi"><div class="l">Penjualan Ice Cream</div><div class="v num" id="kDivIce">Rp0</div></div>
         <div class="kpi"><div class="l">Transaksi</div><div class="v num" id="kTrx">0</div></div>
         <div class="kpi"><div class="l">Rata-rata per struk</div><div class="v num" id="kAvg">Rp0</div></div>
         <div class="kpi"><div class="l">HPP (modal bahan)</div><div class="v num" id="kHpp">Rp0</div></div>
@@ -340,7 +347,7 @@ td.r,th.r{text-align:right}
         <select id="dayRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="7">7 hari terakhir</option><option value="30">30 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
         <div class="kpis" style="margin-bottom:14px"><div class="kpi"><div class="l">Total pendapatan bersih</div><div class="v num" id="kDayTotal">Rp0</div></div><div class="kpi"><div class="l">Rata-rata per hari buka</div><div class="v num" id="kDayAvg">Rp0</div></div><div class="kpi"><div class="l" id="kDayBestL">Hari tertinggi</div><div class="v num" id="kDayBest">-</div></div></div>
         <div class="daytip" id="dayTip"></div><div class="daychart" id="dayChart" role="img" aria-label="Grafik pendapatan bersih per hari"></div><div class="dayaxis" id="dayAxis"></div>
-        <table style="margin-top:14px"><thead><tr><th>Tanggal</th><th class="r">Transaksi</th><th class="r">Penjualan</th><th class="r">Refund</th><th class="r">Pendapatan bersih</th><th class="r">Pengeluaran</th><th class="r">Laba kotor</th></tr></thead><tbody id="dayRows"></tbody><tfoot id="dayFoot"></tfoot></table></div>
+        <table style="margin-top:14px"><thead><tr><th>Tanggal</th><th class="r">Transaksi</th><th class="r">Penjualan</th><th class="r">Refund</th><th class="r">Pendapatan bersih</th><th class="r">Kafe</th><th class="r">Ice Cream</th><th class="r">Pengeluaran</th><th class="r">Laba kotor</th></tr></thead><tbody id="dayRows"></tbody><tfoot id="dayFoot"></tfoot></table></div>
       <div class="panel"><h3 style="margin:0 0 12px;font-size:16px">Menu terlaris</h3><div class="bars" id="bars"></div></div>
       <div class="panel table-wrap" id="konsPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Konsumsi owner &amp; pegawai</h3>
         <select id="konsRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="today">Hari ini</option><option value="7">7 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
@@ -445,6 +452,14 @@ let trx=store.get("trx",[]);
 let refunds=store.get("refunds",[]);const saveRefunds=()=>store.set("refunds",refunds);
 let cfg=Object.assign({name:"Batang Garing Coffee",addr:"",tax:0,footer:"Terima kasih sudah ngopi di Batang Garing!",paper:32,autoPrint:1,sheet:"",key:"",wa:""},store.get("cfg",{}));
 let cart=[];let cat="Semua";let q="";
+// Bagian usaha: menu & stok Kafe dipisah dari Ice Cream
+const DIVS=["Kafe","Ice Cream"];let div=store.get("div","Kafe");if(!DIVS.includes(div))div="Kafe";
+const mDiv=m=>m&&m.div||"Kafe",bDiv=b=>b&&b.div||"Kafe";
+const divOf=l=>l.div||mDiv(menu.find(m=>m.id===l.id));
+// penjualan per bagian (harga menu, sebelum pajak), dikurangi refund
+function divSales(trs,rfs){const o={};DIVS.forEach(d=>o[d]=0);
+  trs.forEach(t=>{if(!t.sample)t.items.forEach(l=>{const d=divOf(l);o[d]=(o[d]||0)+l.qty*l.price})});
+  (rfs||[]).forEach(r=>r.items.forEach(l=>{const d=divOf(l);o[d]=(o[d]||0)-l.qty*l.price}));return o}
 let orders=store.get("orders",[]);const saveOrders=()=>store.set("orders",orders);
 let cur={id:null,table:"",name:""};
 let kons=store.get("kons",[]);const saveKons=()=>store.set("kons",kons);
@@ -473,6 +488,10 @@ function toast(msg){const t=document.createElement("div");t.className="toast";t.
 // ---------- navigasi ----------
 document.querySelectorAll(".nav[data-view]").forEach(b=>b.onclick=()=>show(b.dataset.view));
 const OWNER_VIEWS=["menu","settings"];
+function renderDivTabs(){
+  document.querySelectorAll(".divtabs").forEach(t=>{t.innerHTML=DIVS.map(d=>`<button role="tab" aria-selected="${d===div}" data-div="${d}">${d}<span class="n">${menu.filter(m=>mDiv(m)===d).length}</span></button>`).join("");
+    t.querySelectorAll("[data-div]").forEach(b=>b.onclick=()=>{div=b.dataset.div;store.set("div",div);cat="Semua";renderDivTabs();
+      if(!$("#v-pos").hidden)renderPos();if(!$("#v-menu").hidden)renderMenu();if(!$("#v-stock").hidden)renderStock()})})}
 function show(v){
   if(OWNER_VIEWS.includes(v)&&(!me||me.role!=="owner")){toast("Hanya pemilik yang bisa membuka halaman ini");v="pos"}
   document.querySelectorAll(".nav[data-view]").forEach(b=>{if(b.dataset.view===v)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
@@ -484,21 +503,22 @@ function show(v){
 function renderPos(){
   $("#storeName").textContent=cfg.name;
   $("#today").textContent=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const cats=["Semua",...new Set(menu.map(m=>m.cat))];
+  renderDivTabs();const dm=menu.filter(m=>mDiv(m)===div);
+  const cats=["Semua",...new Set(dm.map(m=>m.cat))];if(!cats.includes(cat))cat="Semua";
   $("#cats").innerHTML=cats.map(c=>`<button class="chip" aria-pressed="${c===cat}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
   $("#cats").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{cat=b.dataset.c;renderPos()});
-  const list=menu.filter(m=>(cat==="Semua"||m.cat===cat)&&m.name.toLowerCase().includes(q.toLowerCase()));
+  const list=(q?menu:dm).filter(m=>(q||cat==="Semua"||m.cat===cat)&&m.name.toLowerCase().includes(q.toLowerCase()));
   $("#grid").innerHTML=list.length?list.map(m=>{const inCart=cart.find(l=>l.id===m.id);const h=hueOf(m.cat);
     return `<button class="item ${m.on?"":"habis"}" data-id="${m.id}" ${m.on?"":"disabled"}>
       <span class="ico" style="background:${h}22;color:${h}">${esc(initials(m.name))}</span>
       <span class="nm">${esc(m.name)}</span>${portionsHtml(m)}<span class="pr num">${rp(m.price)}</span>
-      ${inCart?`<span class="qty">${inCart.qty}</span>`:""}</button>`}).join(""):menu.length?`<p class="empty">Menu tidak ditemukan.</p>`:`<div class="empty" style="grid-column:1/-1;display:grid;gap:12px;justify-items:center"><b style="font-size:17px;color:var(--fg)">Belum ada menu</b><span>Masukkan menu Batang Garing satu per satu: nama, kategori, dan harga.</span><button class="btn primary" id="firstItem">+ Tambah menu pertama</button></div>`;
+      ${inCart?`<span class="qty">${inCart.qty}</span>`:""}</button>`}).join(""):menu.length?`<p class="empty">${q?"Menu tidak ditemukan.":`Belum ada menu ${esc(div)}.${me&&me.role==="owner"?` <button class="btn ghost sm" id="firstItem">+ Tambah menu ${esc(div)}</button>`:""}`}</p>`:`<div class="empty" style="grid-column:1/-1;display:grid;gap:12px;justify-items:center"><b style="font-size:17px;color:var(--fg)">Belum ada menu</b><span>Masukkan menu Batang Garing satu per satu: nama, kategori, dan harga.</span><button class="btn primary" id="firstItem">+ Tambah menu pertama</button></div>`;
   $("#firstItem")&&($("#firstItem").onclick=()=>{show("menu");editItem(null)});
   $("#grid").querySelectorAll(".item").forEach(b=>b.onclick=()=>add(b.dataset.id));
   renderCart();
 }
 $("#q").oninput=e=>{q=e.target.value;renderPos()};
-function add(id){const m=menu.find(x=>x.id===id);const l=cart.find(x=>x.id===id);if(l)l.qty++;else cart.push({id,name:m.name,price:m.price,qty:1});renderPos()}
+function add(id){const m=menu.find(x=>x.id===id);const l=cart.find(x=>x.id===id);if(l)l.qty++;else cart.push({id,name:m.name,price:m.price,qty:1,div:mDiv(m)});renderPos()}
 function totals(){const sub=cart.reduce((a,l)=>a+l.price*l.qty,0);const tax=Math.round(sub*(+cfg.tax||0)/100);return{sub,tax,total:sub+tax}}
 function nextNo(){const d=new Date();const ds=d.toISOString().slice(2,10).replace(/-/g,"");const n=trx.filter(t=>t.no.startsWith(ds)).length+1;return ds+"-"+String(n).padStart(3,"0")}
 function renderCart(){
@@ -542,7 +562,7 @@ $("#payBtn").onclick=()=>{
   $("#confirmPay").onclick=()=>{
     const sh=openShift();
     if(!sh||!me){closeModal();return toast("Buka shift dulu sebelum menerima pembayaran")}
-    const tr={cashier:me.name,cashierId:me.id,shift:sh.id,no:nextNo(),time:new Date().toISOString(),items:cart.map(l=>({...l})),sub:t.sub,tax:t.tax,total:t.total,method,paid:method==="Tunai"?paid:t.total,change:method==="Tunai"?paid-t.total:0,synced:false};
+    const tr={cashier:me.name,cashierId:me.id,shift:sh.id,no:nextNo(),time:new Date().toISOString(),items:cart.map(l=>({...l,div:divOf(l)})),sub:t.sub,tax:t.tax,total:t.total,method,paid:method==="Tunai"?paid:t.total,change:method==="Tunai"?paid-t.total:0,synced:false};
     tr.table=cur.table;if(cur.name)tr.customer=cur.name;
     applySale(tr);trx.push(tr);saveTrx();cart=[];
     if(cur.id){orders=orders.filter(o=>o.id!==cur.id);saveOrders()}cur={id:null,table:"",name:""};$("#cart").classList.remove("open");renderPos();
@@ -642,7 +662,7 @@ async function syncOnce(manual){
   if(!cfg.sheet){if(manual)toast("Isi dulu URL Web App di Pengaturan");return}
   if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length&&!pendK.length&&!pendR.length){if(manual)toast("Semua transaksi sudah terkirim");return}
   try{
-    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,refunds:pendR,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost}))})});
+    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,refunds:pendR,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost,div:bDiv(b)}))})});
     pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();pendR.forEach(x=>x.synced=true);saveRefunds();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
   }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
   if(!$("#v-report").hidden)renderReport();
@@ -662,21 +682,28 @@ addEventListener("online",()=>syncPending(false));
 
 // ---------- editor menu ----------
 function renderMenu(){
-  $("#menuRows").innerHTML=menu.map(m=>`<tr data-id="${m.id}"><td><b>${esc(m.name)}</b></td><td>${esc(m.cat)}</td><td class="r num">${rp(m.price)}</td>
+  renderDivTabs();$("#menuDivT").textContent=div;$("#addItem").textContent="+ Tambah menu "+div;
+  $("#menuRows").innerHTML=menu.filter(m=>mDiv(m)===div).map(m=>`<tr data-id="${m.id}"><td><b>${esc(m.name)}</b>${m.item&&bahan.some(b=>b.id===m.item)?`<div class="hint">Stok: ${fq(bahan.find(b=>b.id===m.item).stock)} pcs</div>`:""}</td><td>${esc(m.cat)}</td><td class="r num">${rp(m.price)}</td>
    <td class="r num">${m.recipe?.length?rp(hppOf(m)):"-"}</td><td class="r num">${m.recipe?.length?marginTxt(m.price,hppOf(m)):"-"}</td>
-   <td><input type="checkbox" class="toggle" aria-label="Tersedia" ${m.on?"checked":""} data-t="${m.id}"></td><td class="r"><button class="btn ghost sm" data-e="${m.id}">Ubah</button></td></tr>`).join("")||`<tr><td colspan="7" class="hint" style="padding:24px 8px">Belum ada menu. Ketuk <b>+ Tambah menu</b> untuk mulai.</td></tr>`;
+   <td><input type="checkbox" class="toggle" aria-label="Tersedia" ${m.on?"checked":""} data-t="${m.id}"></td><td class="r"><button class="btn ghost sm" data-e="${m.id}">Ubah</button></td></tr>`).join("")||`<tr><td colspan="7" class="hint" style="padding:24px 8px">Belum ada menu ${esc(div)}. Ketuk <b>+ Tambah menu ${esc(div)}</b> untuk mulai.</td></tr>`;
   $("#menuRows").querySelectorAll("[data-t]").forEach(c=>c.onchange=()=>{menu.find(m=>m.id===c.dataset.t).on=c.checked;saveMenu()});
   $("#menuRows").querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>editItem(b.dataset.e));
 }
 $("#addItem").onclick=()=>editItem(null);
 function editItem(id){
-  const m=id?menu.find(x=>x.id===id):{name:"",cat:menu[menu.length-1]?.cat||"Kopi",price:"",on:true};
-  const cats=[...new Set(menu.map(x=>x.cat))];
+  const lastCat=menu.filter(x=>mDiv(x)===div).slice(-1)[0]?.cat;
+  const m=id?menu.find(x=>x.id===id):{name:"",cat:lastCat||(div==="Ice Cream"?"Ice Cream":"Kopi"),price:"",on:true,div};
+  const cats=[...new Set(menu.filter(x=>mDiv(x)===mDiv(m)).map(x=>x.cat))],lb=m.item&&bahan.find(b=>b.id===m.item),direct=id?!!lb:mDiv(m)==="Ice Cream";
   modal(`<h3>${id?"Ubah menu":"Menu baru"}</h3>
    <div class="field"><label for="eName">Nama menu</label><input id="eName" value="${esc(m.name)}" placeholder="mis. Es Kopi Susu"></div>
    <div class="form-grid"><div class="field"><label for="eCat">Kategori</label><input id="eCat" list="catList" value="${esc(m.cat)}"><datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
    <div class="field"><label for="ePrice">Harga (Rp)</label><input id="ePrice" class="money" inputmode="numeric" value="${m.price}" placeholder="15000"></div></div>
-   <div class="field"><label>Resep per porsi (untuk stok dan HPP)</label>${bahan.length?`<div id="rcp" style="display:grid;gap:8px"></div><div><button class="btn ghost sm" id="rcpAdd" type="button">+ Bahan</button></div>`:`<p class="hint">Belum ada bahan. Tambahkan bahan dulu di halaman <b>Stok</b>, lalu kembali ke sini untuk mengisi resep.</p>`}</div>
+   <div class="field"><label for="eDiv">Bagian</label><select id="eDiv">${DIVS.map(d=>`<option ${d===mDiv(m)?"selected":""}>${d}</option>`).join("")}</select></div>
+   <label class="hint" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="eDirect" style="width:auto" ${direct?"checked":""}> Stok dihitung per barang (mis. es krim cup, stik, cone, minuman botol)</label>
+   <div id="directF" class="form-grid">${lb?`<div class="field"><label>Stok tersedia</label><p class="hint" style="margin:6px 0 0"><b>${fq(lb.stock)} pcs</b>. Tambah lewat Stok masuk, koreksi lewat Hitung di halaman Stok.</p></div>`:`<div class="field"><label for="eStock">Stok tersedia (pcs)</label><input id="eStock" inputmode="decimal" placeholder="mis. 24"></div>`}
+     <div class="field"><label for="eCost">Harga modal per pcs (Rp)</label><input id="eCost" class="money" inputmode="numeric" value="${lb?Math.round(lb.cost):""}" placeholder="mis. 6000"></div>
+     <div class="field"><label for="eMin">Batas stok menipis (pcs)</label><input id="eMin" inputmode="decimal" value="${lb?lb.min:""}" placeholder="mis. 5"></div></div>
+   <div class="field" id="rcpField"><label>Resep per porsi (untuk stok dan HPP)</label>${bahan.length?`<div id="rcp" style="display:grid;gap:8px"></div><div><button class="btn ghost sm" id="rcpAdd" type="button">+ Bahan</button></div>`:`<p class="hint">Belum ada bahan. Tambahkan bahan dulu di halaman <b>Stok</b>, lalu kembali ke sini untuk mengisi resep.</p>`}</div>
    <div class="recap" id="hppBox"></div>
    <div class="row">${id?`<button class="btn danger" id="eDel">Hapus</button>`:""}<button class="btn ghost" data-close>Batal</button>${id?"":`<button class="btn ghost" id="eSaveMore">Simpan &amp; tambah lagi</button>`}<button class="btn primary" id="eSave">Simpan</button></div>`);
   $("#eName").focus();
@@ -686,15 +713,24 @@ function editItem(id){
     d.querySelector("select").onchange=u;d.querySelector("input").oninput=hppLive;d.querySelector("button").onclick=()=>{d.remove();hppLive()};
     $("#rcp").append(d);u()};
   const readRcp=()=>$("#rcp")?[...$("#rcp").children].map(d=>({b:d.querySelector("select").value,q:num(d.querySelector("input").value)})).filter(r=>r.q>0):[];
-  function hppLive(){const h=hppOf({recipe:readRcp()}),pr=+String($("#ePrice").value).replace(/\D/g,"");
+  function hppLive(){if($("#eDirect")&&$("#eDirect").checked)return;const h=hppOf({recipe:readRcp()}),pr=+String($("#ePrice").value).replace(/\D/g,"");
     $("#hppBox").innerHTML=readRcp().length?`<div><span>HPP per porsi</span><span>${rp(h)}</span></div><div><span>Margin</span><span>${pr?rp(pr-h)+" · "+marginTxt(pr,h):"-"}</span></div>`:""}
-  if($("#rcp")){(m.recipe||[]).forEach(rcpRow);$("#rcpAdd").onclick=()=>rcpRow();$("#ePrice").addEventListener("input",hppLive);hppLive()}
+  const dirUpd=()=>{const on=$("#eDirect").checked;$("#directF").hidden=!on;$("#rcpField").hidden=on;
+    if(on){const c=+String($("#eCost").value).replace(/\D/g,""),pr=+String($("#ePrice").value).replace(/\D/g,"");$("#hppBox").innerHTML=c?`<div><span>HPP per pcs</span><span>${rp(c)}</span></div><div><span>Margin</span><span>${pr?rp(pr-c)+" · "+marginTxt(pr,c):"-"}</span></div>`:""}else hppLive()};
+  $("#eDirect").onchange=dirUpd;$("#eCost").oninput=dirUpd;$("#ePrice").addEventListener("input",()=>$("#eDirect").checked&&dirUpd());
+  if($("#rcp")){(lb?[]:(m.recipe||[])).forEach(rcpRow);$("#rcpAdd").onclick=()=>rcpRow();$("#ePrice").addEventListener("input",hppLive);hppLive()}
   const save=more=>{const name=$("#eName").value.trim(),c=$("#eCat").value.trim()||"Lainnya",price=+$("#ePrice").value.replace(/\D/g,"");
     if(!name||!price)return toast("Nama dan harga wajib diisi");
-    const recipe=$("#rcp")?readRcp():(m.recipe||[]);
-    if(id)Object.assign(m,{name,cat:c,price,recipe});else menu.push({id:uid(),name,cat:c,price,on:true,recipe});
+    const dv=$("#eDiv").value;let recipe=$("#rcp")?readRcp():(lb?[]:(m.recipe||[])),item;
+    if($("#eDirect").checked){const cost=+String($("#eCost").value).replace(/\D/g,""),min=num($("#eMin").value);
+      let b=lb;if(!b&&bahan.some(x=>x.name.toLowerCase()===name.toLowerCase()&&!x.menu))return toast("Nama itu sudah dipakai di daftar bahan. Pakai nama lain.");
+      if(b)Object.assign(b,{name,min,cost,packPrice:cost,pack:1,div:dv});
+      else{b={id:uid(),name,unit:"pcs",stock:0,min,cost,pack:1,packPrice:cost,div:dv,menu:true};bahan.push(b);const st=r3(num($("#eStock")?$("#eStock").value:0));if(st){b.stock=st;addMove(b,st,"Stok awal","",cost)}}
+      saveBahan();recipe=[{b:b.id,q:1}];item=b.id}
+    if(id){Object.assign(m,{name,cat:c,price,recipe,div:dv});if(item)m.item=item;else delete m.item}else{const nm={id:uid(),name,cat:c,price,on:true,recipe,div:dv};if(item)nm.item=item;menu.push(nm)}
     saveMenu();renderMenu();toast(`${name} disimpan`);
-    if(more){$("#eName").value="";$("#ePrice").value="";if($("#rcp")){$("#rcp").innerHTML="";hppLive()}$("#eName").focus()}else closeModal()};
+    if(more){$("#eName").value="";$("#ePrice").value="";if($("#eStock"))$("#eStock").value="";if($("#rcp")){$("#rcp").innerHTML="";hppLive()}$("#eName").focus()}else closeModal()};
+  dirUpd();
   $("#eSave").onclick=()=>save(false);
   if(!id)$("#eSaveMore").onclick=()=>save(true);
   $("#ePrice").onkeydown=e=>{if(e.key==="Enter")save(!id)};
@@ -706,6 +742,7 @@ function renderReport(){
   const today=new Date().toDateString();const list=trx.filter(t=>new Date(t.time).toDateString()===today);
   const rfToday=refunds.filter(r=>new Date(r.time).toDateString()===today),rfAmt=rfToday.reduce((a,r)=>a+r.amount,0);
   const omzet=list.reduce((a,t)=>a+t.total,0)-rfAmt;$("#kRefund").textContent=rfAmt?"−"+rp(rfAmt):rp(0);
+  const dsT=divSales(list,rfToday);$("#kDivKafe").textContent=rp(dsT.Kafe);$("#kDivIce").textContent=rp(dsT["Ice Cream"]);
   $("#repDate").textContent=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   $("#kOmzet").textContent=rp(omzet);$("#kTrx").textContent=list.length;$("#kAvg").textContent=rp(list.length?omzet/list.length:0);
   $("#kPending").textContent=trx.filter(t=>!t.synced&&!t.sample).length;
@@ -902,6 +939,7 @@ function closeShiftForm(){
     const ex=exps.filter(x=>x.shift===s.id),exCash=ex.filter(x=>x.src==="Laci").reduce((a,x)=>a+x.amount,0);
     const rf=refunds.filter(r=>r.shift===s.id),rfCash=rf.filter(r=>r.method==="Tunai").reduce((a,r)=>a+r.amount,0);
     s.refund={n:rf.length,total:rf.reduce((a,r)=>a+r.amount,0),cash:rfCash,sub:rf.reduce((a,r)=>a+r.sub,0),hppBack:rf.reduce((a,r)=>a+r.hppBack,0),list:rf.map(r=>({no:r.trxNo,amount:r.amount,method:r.method,reason:r.reason,by:r.approvedBy}))};
+    s.byDiv=divSales(list,rf);
     Object.assign(s,{end:new Date().toISOString(),counted:+raw,cashSales:cash,nonCash:list.reduce((a,t)=>a+t.total,0)-cash,byMethod,trxCount:list.length,
       expTotal:ex.reduce((a,x)=>a+x.amount,0),expCash:exCash,expected:s.openCash+cash-exCash-rfCash,closedBy:me.name,
       kons:konsSummary(kons.filter(k=>k.shift===s.id)),unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0)-s.refund.sub,hpp:list.reduce((a,t)=>a+(t.hpp||0),0)-s.refund.hppBack,usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
@@ -914,6 +952,7 @@ function shiftLines(s){
   const t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
   return ["REKAP SHIFT",cfg.name,line,lr("Kasir",s.name),lr("Buka",t(s.start)),lr("Tutup",t(s.end)),lr("Transaksi",s.trxCount),line,
     ...Object.entries(s.byMethod).map(([m,v])=>lr(m,n(v))),line,
+    ...(s.byDiv&&s.byDiv["Ice Cream"]?["PER BAGIAN (sblm pajak)",...DIVS.map(d=>lr(d,n(s.byDiv[d]||0))),line]:[]),
     ...(s.refund&&s.refund.n?["REFUND",...s.refund.list.map(r=>lr(r.no+(r.method==="Tunai"?"":"*"),"-"+n(r.amount))),lr("Total refund","-"+n(s.refund.total)),line]:[]),
     ...(shiftExps(s).length?["PENGELUARAN",...shiftExps(s).map(x=>lr(x.cat+(x.src==="Laci"?"":"*"),n(x.amount))),lr("Total pengeluaran",n(s.expTotal||0)),line]:[]),
     ...(s.hpp?[lr("Penjualan (tanpa pajak)",n(s.netSales)),lr("HPP",n(s.hpp)),lr("LABA KOTOR",n(s.netSales-s.hpp)),line]:[]),
@@ -927,6 +966,7 @@ function showShiftRecap(s){
   modal(`<h3>Shift ditutup</h3>
     <div class="recap"><div><span>Transaksi</span><span>${s.trxCount}</span></div>
     ${Object.entries(s.byMethod).map(([m,v])=>`<div><span>${esc(m)}</span><span>${rp(v)}</span></div>`).join("")}
+    ${s.byDiv&&s.byDiv["Ice Cream"]?DIVS.map(d=>`<div><span>Penjualan ${d}</span><span>${rp(s.byDiv[d]||0)}</span></div>`).join(""):""}
     ${s.refund&&s.refund.n?`<div><span>Refund (${s.refund.n})</span><span>−${rp(s.refund.total)}</span></div>`:""}
     <div><span>Pengeluaran (${shiftExps(s).length})</span><span>${rp(s.expTotal||0)}</span></div>
     ${s.kons&&s.kons.qty?`<div><span>Konsumsi staf (${s.kons.qty} item)</span><span>${rp(s.kons.value)}</span></div>`:""}
@@ -1047,9 +1087,9 @@ $("#konsRange").onchange=renderKons;
 // ---------- pendapatan per hari ----------
 const dkey=x=>{const d=new Date(x);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 function dailyIncome(from,to){
-  const days=[],map={};for(let d=new Date(from);d<to;d.setDate(d.getDate()+1)){const k=dkey(d),o={k,date:new Date(d),n:0,sales:0,refund:0,exp:0,sub:0,hpp:0};days.push(o);map[k]=o}
-  trx.forEach(t=>{if(t.sample)return;const o=map[dkey(t.time)];if(o){o.n++;o.sales+=t.total;o.sub+=t.sub;o.hpp+=t.hpp||0}});
-  refunds.forEach(r=>{const o=map[dkey(r.time)];if(o){o.refund+=r.amount;o.sub-=r.sub;o.hpp-=r.hppBack||0}});
+  const days=[],map={};for(let d=new Date(from);d<to;d.setDate(d.getDate()+1)){const k=dkey(d),o={k,date:new Date(d),n:0,sales:0,refund:0,exp:0,sub:0,hpp:0,kafe:0,ice:0};days.push(o);map[k]=o}
+  trx.forEach(t=>{if(t.sample)return;const o=map[dkey(t.time)];if(o){o.n++;o.sales+=t.total;o.sub+=t.sub;o.hpp+=t.hpp||0;t.items.forEach(l=>o[divOf(l)==="Ice Cream"?"ice":"kafe"]+=l.qty*l.price)}});
+  refunds.forEach(r=>{const o=map[dkey(r.time)];if(o){o.refund+=r.amount;o.sub-=r.sub;o.hpp-=r.hppBack||0;r.items.forEach(l=>o[divOf(l)==="Ice Cream"?"ice":"kafe"]-=l.qty*l.price)}});
   exps.forEach(x=>{const o=map[dkey(x.time)];if(o)o.exp+=x.amount});
   days.forEach(o=>{o.net=o.sales-o.refund;o.laba=o.sub-o.hpp});return days;
 }
@@ -1068,8 +1108,8 @@ function renderDays(){
   const show=i=>{$("#dayTip").innerHTML=tip(days[i]);$("#dayChart").querySelectorAll("button").forEach((b,j)=>b.setAttribute("aria-pressed",j===i))};
   $("#dayChart").querySelectorAll("button").forEach(b=>{b.onpointerenter=b.onclick=b.onfocus=()=>show(+b.dataset.di)});
   show(days.length-1);
-  $("#dayRows").innerHTML=days.slice().reverse().map(o=>`<tr><td>${dl(o.date,{weekday:"short",day:"2-digit",month:"short"})}</td><td class="r num">${o.n}</td><td class="r num">${rp(o.sales)}</td><td class="r num">${o.refund?"−"+rp(o.refund):"-"}</td><td class="r num"><b>${rp(o.net)}</b></td><td class="r num">${o.exp?rp(o.exp):"-"}</td><td class="r num">${rp(o.laba)}</td></tr>`).join("");
-  $("#dayFoot").innerHTML=`<tr><td><b>Total</b></td><td class="r num"><b>${sum("n")}</b></td><td class="r num"><b>${rp(sum("sales"))}</b></td><td class="r num"><b>${sum("refund")?"−"+rp(sum("refund")):"-"}</b></td><td class="r num"><b>${rp(total)}</b></td><td class="r num"><b>${rp(sum("exp"))}</b></td><td class="r num"><b>${rp(sum("laba"))}</b></td></tr>`;
+  $("#dayRows").innerHTML=days.slice().reverse().map(o=>`<tr><td>${dl(o.date,{weekday:"short",day:"2-digit",month:"short"})}</td><td class="r num">${o.n}</td><td class="r num">${rp(o.sales)}</td><td class="r num">${o.refund?"−"+rp(o.refund):"-"}</td><td class="r num"><b>${rp(o.net)}</b></td><td class="r num">${rp(o.kafe)}</td><td class="r num">${rp(o.ice)}</td><td class="r num">${o.exp?rp(o.exp):"-"}</td><td class="r num">${rp(o.laba)}</td></tr>`).join("");
+  $("#dayFoot").innerHTML=`<tr><td><b>Total</b></td><td class="r num"><b>${sum("n")}</b></td><td class="r num"><b>${rp(sum("sales"))}</b></td><td class="r num"><b>${sum("refund")?"−"+rp(sum("refund")):"-"}</b></td><td class="r num"><b>${rp(total)}</b></td><td class="r num"><b>${rp(sum("kafe"))}</b></td><td class="r num"><b>${rp(sum("ice"))}</b></td><td class="r num"><b>${rp(sum("exp"))}</b></td><td class="r num"><b>${rp(sum("laba"))}</b></td></tr>`;
 }
 $("#dayRange").onchange=renderDays;
 
@@ -1083,7 +1123,7 @@ const marginTxt=(price,h)=>price?Math.round((price-h)/price*100)+"%":"-";
 const isLow=b=>b.stock<=(+b.min||0);
 const stockPill=b=>b.stock<=0?`<span class="pill wait">Habis</span>`:isLow(b)?`<span class="pill wait">Menipis</span>`:`<span class="pill ok">Aman</span>`;
 function portions(m){if(!m.recipe||!m.recipe.length)return null;let p=Infinity;m.recipe.forEach(r=>{const b=bahan.find(x=>x.id===r.b);if(b&&r.q>0)p=Math.min(p,Math.floor(b.stock/r.q+1e-9))});return p===Infinity?null:Math.max(0,p)}
-function portionsHtml(m){const p=portions(m);return p===null?"":`<span class="stk ${p<=5?"low":""}">${p<=0?"Stok bahan habis":"Sisa "+p+" porsi"}</span>`}
+function portionsHtml(m){const p=portions(m);return p===null?"":`<span class="stk ${p<=5?"low":""}">${p<=0?(m.item?"Stok habis":"Stok bahan habis"):"Sisa "+p+(m.item?" pcs":" porsi")}</span>`}
 function applySale(tr,type="Terjual",note){
   const use={},before={};let hpp=0;
   tr.items.forEach(l=>{const m=menu.find(x=>x.id===l.id);let unit=0;
@@ -1100,26 +1140,30 @@ function shiftUsage(shiftId){const u={};moves.filter(x=>x.shift===shiftId&&(x.ty
   return Object.entries(u).map(([id,qty])=>{const b=bahan.find(x=>x.id===id)||{name:"?",unit:"",stock:0};return{name:b.name,unit:b.unit,qty,left:b.stock}})}
 function addMove(b,qty,type,note,cost){moves.push({id:uid(),time:new Date().toISOString(),bahan:b.id,name:b.name,unit:b.unit,qty:r3(qty),type,note:note||"",cost:cost??b.cost,shift:openShift()?.id||"",by:me?.name||"",synced:false});saveMoves()}
 function renderStock(){
-  const owner=me&&me.role==="owner",used=usageSince(new Date(new Date().toDateString()));
-  $("#kBahan").textContent=bahan.length;$("#kLow").textContent=bahan.filter(isLow).length;
-  $("#kStockVal").textContent=rp(bahan.reduce((a,b)=>a+Math.max(0,b.stock)*b.cost,0));
-  $("#kUsedVal").textContent=rp(bahan.reduce((a,b)=>a+(used[b.id]||0)*b.cost,0));
-  $("#bahanRows").innerHTML=bahan.map(b=>`<tr><td><b>${esc(b.name)}</b><div class="hint">min. ${fq(b.min)} ${esc(b.unit)}</div></td><td class="r num">${fq(b.stock)} ${esc(b.unit)}</td><td class="r num">${fq(used[b.id]||0)} ${esc(b.unit)}</td>
+  const owner=me&&me.role==="owner",used=usageSince(new Date(new Date().toDateString())),ic=div==="Ice Cream";renderDivTabs();
+  const list=bahan.filter(b=>bDiv(b)===div),ids=new Set(list.map(b=>b.id));
+  $("#stockTitle").textContent=ic?"Stok Ice Cream":"Stok Bahan Kafe";
+  $("#stockLead").textContent=ic?"Barang ice cream yang tersedia dan sisanya. Stok berkurang otomatis setiap terjual. Catat barang datang lewat Stok masuk.":"Stok berkurang otomatis setiap menu terjual, sesuai resep di halaman Menu. Catat barang datang lewat Stok masuk.";
+  $("#addBahan").textContent=ic?"+ Tambah barang":"+ Tambah bahan";
+  $("#kBahan").textContent=list.length;$("#kLow").textContent=list.filter(isLow).length;
+  $("#kStockVal").textContent=rp(list.reduce((a,b)=>a+Math.max(0,b.stock)*b.cost,0));
+  $("#kUsedVal").textContent=rp(list.reduce((a,b)=>a+(used[b.id]||0)*b.cost,0));
+  $("#bahanRows").innerHTML=list.map(b=>`<tr><td><b>${esc(b.name)}</b><div class="hint">min. ${fq(b.min)} ${esc(b.unit)}${b.menu?" · dijual langsung":""}</div></td><td class="r num">${fq(b.stock)} ${esc(b.unit)}</td><td class="r num">${fq(used[b.id]||0)} ${esc(b.unit)}</td>
     <td class="r num">${rpu(b.cost)} / ${esc(b.unit)}</td><td class="r num">${rp(Math.max(0,b.stock)*b.cost)}</td><td>${stockPill(b)}</td>
     <td class="r" style="white-space:nowrap"><button class="btn ghost sm" data-in="${b.id}">Masuk</button>${owner?` <button class="btn ghost sm" data-op="${b.id}">Hitung</button> <button class="btn ghost sm" data-eb="${b.id}">Ubah</button>`:""}</td></tr>`).join("")
-    ||`<tr><td colspan="7" class="hint" style="padding:24px 8px">Belum ada bahan. ${owner?"Ketuk <b>+ Tambah bahan</b>, misalnya Biji kopi (gram), Susu UHT (ml), Gula aren (ml), Cup plastik (pcs).":"Minta pemilik menambahkan bahan."}</td></tr>`;
+    ||`<tr><td colspan="7" class="hint" style="padding:24px 8px">${ic?`Belum ada barang ice cream. ${owner?"Cara tercepat: buka <b>Menu → Ice Cream → + Tambah menu</b>, centang <b>Stok dihitung per barang</b>, lalu isi stok tersedia. Bahan seperti es krim literan atau cone bisa ditambah lewat <b>+ Tambah barang</b>.":"Minta pemilik menambahkan barang."}`:`Belum ada bahan. ${owner?"Ketuk <b>+ Tambah bahan</b>, misalnya Biji kopi (gram), Susu UHT (ml), Gula aren (ml), Cup plastik (pcs).":"Minta pemilik menambahkan bahan."}`}</td></tr>`;
   $("#bahanRows").querySelectorAll("[data-in]").forEach(x=>x.onclick=()=>stockInForm(x.dataset.in));
   $("#bahanRows").querySelectorAll("[data-op]").forEach(x=>x.onclick=()=>opnameForm(x.dataset.op));
   $("#bahanRows").querySelectorAll("[data-eb]").forEach(x=>x.onclick=()=>bahanForm(x.dataset.eb));
   const t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-  $("#moveRows").innerHTML=moves.slice(-60).reverse().map(x=>`<tr><td class="num">${t(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td class="r num ${x.qty<0?"diff-bad":"diff-ok"}">${x.qty>0?"+":""}${fq(x.qty)} ${esc(x.unit)}</td><td>${esc(x.note||"-")}</td><td>${esc(x.by||"-")}</td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada pergerakan stok.</td></tr>`;
+  $("#moveRows").innerHTML=moves.filter(x=>ids.has(x.bahan)).slice(-60).reverse().map(x=>`<tr><td class="num">${t(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td class="r num ${x.qty<0?"diff-bad":"diff-ok"}">${x.qty>0?"+":""}${fq(x.qty)} ${esc(x.unit)}</td><td>${esc(x.note||"-")}</td><td>${esc(x.by||"-")}</td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada pergerakan stok.</td></tr>`;
 }
 $("#addBahan").onclick=()=>bahanForm(null);
-$("#stockIn").onclick=()=>bahan.length?stockInForm(null):toast("Tambahkan bahan dulu");
+$("#stockIn").onclick=()=>bahan.some(b=>bDiv(b)===div)?stockInForm(null):toast(div==="Ice Cream"?"Belum ada barang ice cream. Tambahkan lewat Menu atau + Tambah barang.":"Tambahkan bahan dulu");
 const UNITS=["gram","ml","pcs","kg","liter","butir","lembar","sachet"];
 function bahanForm(id){
   if(!me||me.role!=="owner")return toast("Hanya pemilik yang bisa mengubah bahan");
-  const b=id?bahan.find(x=>x.id===id):{name:"",unit:"gram",stock:"",min:"",pack:"",packPrice:""};
+  const b=id?bahan.find(x=>x.id===id):{name:"",unit:div==="Ice Cream"?"pcs":"gram",stock:"",min:"",pack:"",packPrice:"",div};
   modal(`<h3>${id?"Ubah bahan":"Bahan baru"}</h3>
     <div class="form-grid"><div class="field"><label for="bName">Nama bahan</label><input id="bName" value="${esc(b.name)}" placeholder="mis. Biji kopi"></div>
     <div class="field"><label for="bUnit">Satuan</label><input id="bUnit" list="bUnits" value="${esc(b.unit)}"><datalist id="bUnits">${UNITS.map(u=>`<option value="${u}">`).join("")}</datalist></div></div>
@@ -1127,6 +1171,7 @@ function bahanForm(id){
     <div class="field"><label for="bPack">Isi per kemasan (<span class="bu">${esc(b.unit)}</span>)</label><input id="bPack" inputmode="decimal" value="${b.pack||""}" placeholder="mis. 1000"></div></div>
     <div class="form-grid">${id?"":`<div class="field"><label for="bStock">Stok sekarang (<span class="bu">${esc(b.unit)}</span>)</label><input id="bStock" inputmode="decimal" placeholder="mis. 2000"></div>`}
     <div class="field"><label for="bMin">Batas stok menipis (<span class="bu">${esc(b.unit)}</span>)</label><input id="bMin" inputmode="decimal" value="${b.min??""}" placeholder="mis. 300"></div></div>
+    <div class="field"><label for="bDiv">Bagian</label><select id="bDiv">${DIVS.map(d=>`<option ${d===bDiv(b)?"selected":""}>${d}</option>`).join("")}</select></div>
     <div class="recap"><div><span>Harga per satuan</span><span id="bCost">-</span></div></div>
     ${id?`<p class="hint">Untuk mengubah jumlah stok, pakai tombol Masuk atau Hitung di daftar bahan agar tercatat di riwayat.</p>`:""}
     <p class="err" id="bErr"></p>
@@ -1139,7 +1184,7 @@ function bahanForm(id){
     if(!name)return $("#bErr").textContent="Nama bahan wajib diisi";
     if(!c)return $("#bErr").textContent="Isi harga beli dan isi per kemasan untuk menghitung HPP";
     if(bahan.some(x=>x.id!==id&&x.name.toLowerCase()===name.toLowerCase()))return $("#bErr").textContent="Nama bahan sudah ada";
-    const v={name,unit,pack:num($("#bPack").value),packPrice:+String($("#bPackPrice").value).replace(/\D/g,""),cost:c,min:num($("#bMin").value)};
+    const v={name,unit,pack:num($("#bPack").value),packPrice:+String($("#bPackPrice").value).replace(/\D/g,""),cost:c,min:num($("#bMin").value),div:$("#bDiv").value};
     if(id){Object.assign(b,v)}else{const nb={id:uid(),...v,stock:r3(num($("#bStock").value))};bahan.push(nb);if(nb.stock)addMove(nb,nb.stock,"Stok awal","",c)}
     saveBahan();closeModal();renderStock();toast(`${name} disimpan`)};
   if(id)$("#bDel").onclick=()=>{const used=menu.filter(m=>(m.recipe||[]).some(r=>r.b===id));
@@ -1149,7 +1194,7 @@ function bahanForm(id){
 function stockInForm(id){
   const s=openShift();
   modal(`<h3>Stok masuk</h3><p class="hint">Catat bahan yang baru dibeli atau datang dari pemasok. Harga per satuan dihitung ulang secara rata-rata.</p>
-    <div class="field"><label for="iB">Bahan</label><select id="iB">${bahan.map(b=>`<option value="${b.id}" ${b.id===id?"selected":""}>${esc(b.name)} (sisa ${fq(b.stock)} ${esc(b.unit)})</option>`).join("")}</select></div>
+    <div class="field"><label for="iB">Bahan</label><select id="iB">${bahan.filter(b=>bDiv(b)===div||b.id===id).map(b=>`<option value="${b.id}" ${b.id===id?"selected":""}>${esc(b.name)} (sisa ${fq(b.stock)} ${esc(b.unit)})</option>`).join("")}</select></div>
     <div class="form-grid"><div class="field"><label for="iQ">Jumlah masuk (<span id="iU"></span>)</label><input id="iQ" inputmode="decimal" placeholder="0"></div>
     <div class="field"><label for="iP">Total harga beli (Rp)</label><input id="iP" class="money" inputmode="numeric" placeholder="0"></div></div>
     <div class="row" id="iPacks"></div>
@@ -1219,6 +1264,7 @@ function waText(s){
   const rfT=s.refund?s.refund.total:0,omzet=Object.values(s.byMethod).reduce((a,v)=>a+v,0)-rfT,d=s.diff;
   return [`*LAPORAN TUTUP SHIFT*`,`*${cfg.name}*`,``,`Kasir: ${s.name}`,`Buka: ${t(s.start)}`,`Tutup: ${t(s.end)}`,``,
     `*Penjualan* (${s.trxCount} transaksi)`,...Object.entries(s.byMethod).map(([m,v])=>`- ${m}: ${rp(v)}`),...(rfT?[`- Refund (${s.refund.n}): -${rp(rfT)}`,...s.refund.list.map(r=>`  · ${r.no} ${rp(r.amount)} via ${r.method} (${r.reason}, disetujui ${r.by})`)]:[]),`Total${rfT?" bersih":""}: *${rp(omzet)}*`,``,
+    ...(s.byDiv&&s.byDiv["Ice Cream"]?[`*Per bagian* (sebelum pajak)`,...DIVS.map(d=>`- ${d}: ${rp(s.byDiv[d]||0)}`),``]:[]),
     `*Pengeluaran* (${list.length})`,...(list.length?list.map(x=>`- ${x.cat}${x.note?" ("+x.note+")":""}: ${rp(x.amount)}${x.src==="Laci"?"":" [bukan dari laci]"}`):["- Tidak ada"]),
     `Total pengeluaran: *${rp(s.expTotal||0)}*`,``,
     ...(s.hpp?[`*HPP & laba*`,`Penjualan (tanpa pajak): ${rp(s.netSales)}`,`HPP bahan: ${rp(s.hpp)}`,`Laba kotor: *${rp(s.netSales-s.hpp)}*`,``]:[]),

@@ -58,6 +58,14 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Ice Cream (terpisah dari menu kafe)
+
+- Kasir, Menu, dan Stok punya tab **Kafe** dan **Ice Cream**. Tab yang dipilih menentukan menu, kategori, dan stok yang tampil. Satu pesanan tetap boleh berisi kopi dan es krim sekaligus.
+- Menu ice cream baru otomatis memakai **Stok dihitung per barang**: isi stok tersedia (pcs), harga modal per pcs, dan batas menipis. Sisa stok tampil di kartu menu kasir dan berkurang tiap terjual.
+- Untuk es krim per scoop dari kemasan besar, matikan centang itu lalu pakai resep (mis. Es krim vanila 80 ml + Cone 1 pcs) dari barang di **Stok → Ice Cream → + Tambah barang**.
+- Halaman Stok tab Ice Cream: sisa, terjual hari ini, nilai stok, stok masuk, hitung ulang (opname), dan riwayat khusus ice cream.
+- Laporan, pendapatan per hari, rekap tutup shift, WhatsApp, dan spreadsheet (kolom **Bagian** di Detail Item dan Sisa Stok) memisahkan penjualan Kafe dan Ice Cream.
+
 ## Pendapatan per hari
 
 - Di **Laporan → Pendapatan per hari**: pilih 7 hari, 30 hari, bulan ini, atau bulan lalu.

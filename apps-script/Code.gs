@@ -28,7 +28,7 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     const trx = sheet_('Transaksi', ['Waktu', 'Tanggal', 'No Struk', 'Toko', 'Metode', 'Subtotal', 'Pajak', 'Total', 'Dibayar', 'Kembali', 'Jumlah Item', 'Kasir', 'HPP', 'Laba kotor', 'Meja', 'Nama pemesan']);
-    const det = sheet_('Detail Item', ['Tanggal', 'No Struk', 'Menu', 'Qty', 'Harga', 'Subtotal', 'HPP satuan', 'Total HPP']);
+    const det = sheet_('Detail Item', ['Tanggal', 'No Struk', 'Menu', 'Qty', 'Harga', 'Subtotal', 'HPP satuan', 'Total HPP', 'Bagian']);
     const ada = new Set(trx.getLastRow() > 1 ? trx.getRange(2, 3, trx.getLastRow() - 1, 1).getValues().flat().map(String) : []);
     const rowsT = [], rowsD = [];
     (data.transactions || []).forEach(t => {
@@ -36,7 +36,7 @@ function doPost(e) {
       const d = new Date(t.time);
       const tgl = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
       rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '', t.hpp || 0, t.sub - (t.hpp || 0), t.table === 'TA' ? 'Bawa pulang' : (t.table || ''), t.customer || '']);
-      t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price, i.hpp || 0, (i.hpp || 0) * i.qty]));
+      t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price, i.hpp || 0, (i.hpp || 0) * i.qty, i.div || 'Kafe']));
     });
     if (rowsT.length) trx.getRange(trx.getLastRow() + 1, 1, rowsT.length, rowsT[0].length).setValues(rowsT);
     if (rowsD.length) det.getRange(det.getLastRow() + 1, 1, rowsD.length, rowsD[0].length).setValues(rowsD);
@@ -88,11 +88,11 @@ function doPost(e) {
       if (rowsR.length) sr.getRange(sr.getLastRow() + 1, 1, rowsR.length, rowsR[0].length).setValues(rowsR);
     }
     if (data.stock && data.stock.length) {
-      const ss = sheet_('Sisa Stok', ['Bahan', 'Sisa', 'Satuan', 'Batas menipis', 'Harga per satuan', 'Nilai stok', 'Status', 'Diperbarui']);
-      if (ss.getLastRow() > 1) ss.getRange(2, 1, ss.getLastRow() - 1, 8).clearContent();
+      const ss = sheet_('Sisa Stok', ['Bahan', 'Sisa', 'Satuan', 'Batas menipis', 'Harga per satuan', 'Nilai stok', 'Status', 'Diperbarui', 'Bagian']);
+      if (ss.getLastRow() > 1) ss.getRange(2, 1, ss.getLastRow() - 1, 9).clearContent();
       const now = new Date();
-      const rows = data.stock.map(b => [b.name, b.stock, b.unit, b.min || 0, b.cost, Math.round(Math.max(0, b.stock) * b.cost), b.stock <= 0 ? 'Habis' : b.stock <= (b.min || 0) ? 'Menipis' : 'Aman', now]);
-      ss.getRange(2, 1, rows.length, 8).setValues(rows);
+      const rows = data.stock.map(b => [b.name, b.stock, b.unit, b.min || 0, b.cost, Math.round(Math.max(0, b.stock) * b.cost), b.stock <= 0 ? 'Habis' : b.stock <= (b.min || 0) ? 'Menipis' : 'Aman', now, b.div || 'Kafe']);
+      ss.getRange(2, 1, rows.length, 9).setValues(rows);
     }
     rekap_();
   } finally {
@@ -126,10 +126,10 @@ function doGet(e) {
   const omzet = hari.reduce((a, r) => a + Number(r[7]), 0) - refund;
   const rp = n => 'Rp' + Math.round(n).toLocaleString('id-ID');
   const det = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Detail Item');
-  const items = {};
-  if (det && det.getLastRow() > 1) det.getRange(2, 1, det.getLastRow() - 1, 6).getValues().forEach(r => {
+  const items = {}, bagian = { 'Kafe': 0, 'Ice Cream': 0 };
+  if (det && det.getLastRow() > 1) det.getRange(2, 1, det.getLastRow() - 1, 9).getValues().forEach(r => {
     const t = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : r[0];
-    if (t === today) items[r[2]] = (items[r[2]] || 0) + Number(r[3]);
+    if (t === today) { items[r[2]] = (items[r[2]] || 0) + Number(r[3]); const b = r[8] || 'Kafe'; bagian[b] = (bagian[b] || 0) + Number(r[5]); }
   });
   const top = Object.entries(items).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const last = hari.slice(-10).reverse();
@@ -157,6 +157,8 @@ h2{font-size:15px;margin:0 0 8px}</style>
 <h1>${data_(e)}</h1><div class="s">${Utilities.formatDate(new Date(), tz, 'dd MMM yyyy HH:mm')} · diperbarui tiap menit</div>
 <div class="k"><div class="c"><div class="l">Omzet bersih hari ini</div><div class="v">${rp(omzet)}</div></div>
 <div class="c"><div class="l">Transaksi</div><div class="v">${hari.length}</div></div>
+<div class="c"><div class="l">Penjualan Kafe</div><div class="v">${rp(bagian['Kafe'])}</div></div>
+<div class="c"><div class="l">Penjualan Ice Cream</div><div class="v">${rp(bagian['Ice Cream'])}</div></div>
 <div class="c"><div class="l">Refund hari ini</div><div class="v" style="color:${refund ? '#c8501e' : 'inherit'}">${rp(refund)}</div></div>
 <div class="c"><div class="l">Jumlah refund</div><div class="v">${refHari.length}</div></div>
 <div class="c"><div class="l">Pengeluaran hari ini</div><div class="v">${rp(keluar)}</div></div>
