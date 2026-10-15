@@ -58,6 +58,12 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Nama customer & logo di struk
+
+- Tombol **Pilih meja & nama** membuka isian **Nama customer** di bagian atas, lalu pilih meja. Nama yang pernah dipakai muncul sebagai saran. Untuk mengganti nama tanpa pindah meja, ketuk **Simpan nama**.
+- Nama customer tercetak di struk, tampil di daftar pesanan belum bayar, dan masuk ke spreadsheet (kolom Nama pemesan).
+- Logo Batang Garing tercetak di atas struk (printer thermal Bluetooth/USB lewat perintah gambar ESC/POS, atau lewat dialog cetak browser). Bisa dimatikan di **Atur → Printer → Logo di atas struk**.
+
 ## Struk total tutup shift
 
 - Saat shift ditutup, struk total otomatis tercetak kalau printer tersambung (bisa dimatikan di **Atur → Printer**). Kalau belum tersambung, ketuk **Cetak struk total** di layar rekap.
