@@ -165,6 +165,7 @@ h2{font-size:15px;margin:0 0 8px}</style>
 <div class="c"><div class="l">Laba kotor</div><div class="v">${rp(laba)}</div></div>
 <div class="c"><div class="l">Konsumsi staf (nilai jual)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[6]), 0))}</div></div>
 <div class="c"><div class="l">Konsumsi staf (HPP)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[7]), 0))}</div></div></div>
+<div class="c" style="margin-bottom:12px"><h2>Pendapatan 7 hari terakhir</h2><table>${hari7_(rows, shR, tz).map(d => `<tr><td>${d.label} · ${d.n} transaksi${d.refund ? ' · refund ' + rp(d.refund) : ''}</td><td><b>${rp(d.net)}</b></td></tr>`).join('')}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Stok menipis</h2><table>${menipis.map(r => `<tr><td>${r[0]} · ${r[6]}</td><td style="color:#c8501e">${Number(r[1]).toLocaleString('id-ID')} ${r[2]}</td></tr>`).join('') || '<tr><td>Semua stok aman</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${n}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${r[1]} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
@@ -172,5 +173,19 @@ ${refHari.length ? `<div class="c" style="margin-bottom:12px"><h2>Refund hari in
 <div class="c" style="margin-bottom:12px"><h2>Pengeluaran hari ini</h2><table>${expHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${r[4]}${r[5] ? ' · ' + r[5] : ''} · ${r[3]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
 <div class="c"><h2>Transaksi terakhir</h2><table>${last.map(r => `<tr><td>${Utilities.formatDate(new Date(r[0]), tz, 'HH:mm')} · ${r[2]} · ${r[4]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>`;
   return HtmlService.createHtmlOutput(html).setTitle('Pantau Kasir').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+/** Pendapatan bersih (penjualan - refund) per hari, 7 hari terakhir, terbaru di atas. */
+function hari7_(rows, shR, tz) {
+  const key = v => v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v);
+  const out = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    out.push({ k: Utilities.formatDate(d, tz, 'yyyy-MM-dd'), label: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][Number(Utilities.formatDate(d, tz, 'u')) % 7] + ', ' + Utilities.formatDate(d, tz, 'dd/MM'), n: 0, sales: 0, refund: 0 });
+  }
+  const map = {}; out.forEach(o => map[o.k] = o);
+  rows.forEach(r => { const o = map[key(r[1])]; if (o) { o.n++; o.sales += Number(r[7]) || 0; } });
+  if (shR && shR.getLastRow() > 1) shR.getRange(2, 1, shR.getLastRow() - 1, 10).getValues().forEach(r => { const o = map[key(r[2])]; if (o) o.refund += Number(r[9]) || 0; });
+  out.forEach(o => o.net = o.sales - o.refund);
+  return out;
 }
 function data_() { return SpreadsheetApp.getActiveSpreadsheet().getName(); }

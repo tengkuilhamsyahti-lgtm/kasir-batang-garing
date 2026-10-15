@@ -150,6 +150,13 @@ td.r,th.r{text-align:right}
 .kpi .l{font-size:12px;color:var(--muted);font-weight:600}
 .kpi .v{font-family:var(--f-mono);font-size:24px;font-weight:600;margin-top:4px}
 .bars{display:grid;gap:8px}
+.daychart{display:flex;align-items:flex-end;gap:2px;height:170px;border-bottom:1px solid var(--line);padding-top:8px}
+.daychart button{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;background:none;border:0;padding:0;cursor:pointer}
+.daychart button i{display:block;width:100%;max-width:44px;margin:0 auto;background:var(--brand);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
+.daychart button:hover i,.daychart button[aria-pressed=true] i{opacity:1;outline:2px solid var(--surface);box-shadow:0 0 0 4px var(--brand-soft)}
+.daychart button.zero i{background:var(--line)}
+.dayaxis{display:flex;gap:2px;font-size:11px;color:var(--muted);margin-top:4px}.dayaxis span{flex:1;min-width:0;text-align:center;font-family:var(--f-mono)}
+.daytip{font-size:13px;color:var(--muted);min-height:20px;margin-bottom:4px}.daytip b{color:var(--fg)}
 .bar{display:grid;grid-template-columns:130px 1fr 110px;gap:10px;align-items:center;font-size:13px}
 .bar .track{height:12px;background:var(--surface-2);border-radius:6px;overflow:hidden}
 .bar .fill{height:100%;background:var(--brand);border-radius:6px}
@@ -317,6 +324,11 @@ td.r,th.r{text-align:right}
         <div class="kpi"><div class="l">Laba kotor</div><div class="v num" id="kLaba">Rp0</div></div>
         <div class="kpi"><div class="l">Belum terkirim</div><div class="v num" id="kPending">0</div></div>
       </div>
+      <div class="panel table-wrap" id="dayPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Pendapatan per hari</h3>
+        <select id="dayRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="7">7 hari terakhir</option><option value="30">30 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
+        <div class="kpis" style="margin-bottom:14px"><div class="kpi"><div class="l">Total pendapatan bersih</div><div class="v num" id="kDayTotal">Rp0</div></div><div class="kpi"><div class="l">Rata-rata per hari buka</div><div class="v num" id="kDayAvg">Rp0</div></div><div class="kpi"><div class="l" id="kDayBestL">Hari tertinggi</div><div class="v num" id="kDayBest">-</div></div></div>
+        <div class="daytip" id="dayTip"></div><div class="daychart" id="dayChart" role="img" aria-label="Grafik pendapatan bersih per hari"></div><div class="dayaxis" id="dayAxis"></div>
+        <table style="margin-top:14px"><thead><tr><th>Tanggal</th><th class="r">Transaksi</th><th class="r">Penjualan</th><th class="r">Refund</th><th class="r">Pendapatan bersih</th><th class="r">Pengeluaran</th><th class="r">Laba kotor</th></tr></thead><tbody id="dayRows"></tbody><tfoot id="dayFoot"></tfoot></table></div>
       <div class="panel"><h3 style="margin:0 0 12px;font-size:16px">Menu terlaris</h3><div class="bars" id="bars"></div></div>
       <div class="panel table-wrap" id="konsPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Konsumsi owner &amp; pegawai</h3>
         <select id="konsRange" style="width:auto;min-width:160px;border:1px solid var(--line);background:var(--bg);border-radius:11px;padding:10px 12px"><option value="today">Hari ini</option><option value="7">7 hari terakhir</option><option value="month">Bulan ini</option><option value="lastmonth">Bulan lalu</option></select></div>
@@ -695,7 +707,7 @@ function renderReport(){
     <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-r="${t.no}">Struk</button>${!t.sample&&trxRefund(t)<t.total?`<button class="btn ghost sm" data-rfx="${t.no}">Refund</button>`:""}</div></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
   $("#trxRows").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>showReceipt(trx.find(t=>t.no===b.dataset.r)));
   $("#trxRows").querySelectorAll("[data-rfx]").forEach(b=>b.onclick=()=>refundForm(trx.find(t=>t.no===b.dataset.rfx)));
-  renderExps();renderKons();renderRefunds();
+  renderExps();renderKons();renderRefunds();renderDays();
   const isOwner=me&&me.role==="owner";$("#shiftPanel").hidden=!isOwner;
   if(isOwner){const hm=x=>x?new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Berjalan";
     $("#shiftRows").innerHTML=shifts.slice().reverse().slice(0,30).map(s=>`<tr><td>${esc(s.name)}</td><td class="num">${hm(s.start)}</td><td class="num">${hm(s.end)}</td><td class="r num">${rp(s.openCash)}</td>
@@ -1019,6 +1031,35 @@ function renderKons(){
     modal(`<h3>Konsumsi ${esc(w)}</h3><div class="table-wrap"><table><thead><tr><th>Waktu</th><th>Menu</th><th class="r">Nilai</th><th>Dicatat</th></tr></thead><tbody>${list.filter(k=>k.who===w).reverse().map(k=>`<tr><td class="num">${t(k.time)}</td><td>${esc(k.items.map(i=>i.qty+"× "+i.name).join(", "))}${k.note?`<div class="hint">${esc(k.note)}</div>`:""}</td><td class="r num">${rp(k.value)}</td><td>${esc(k.by)}</td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost" data-close>Tutup</button></div>`)});
 }
 $("#konsRange").onchange=renderKons;
+
+// ---------- pendapatan per hari ----------
+const dkey=x=>{const d=new Date(x);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+function dailyIncome(from,to){
+  const days=[],map={};for(let d=new Date(from);d<to;d.setDate(d.getDate()+1)){const k=dkey(d),o={k,date:new Date(d),n:0,sales:0,refund:0,exp:0,sub:0,hpp:0};days.push(o);map[k]=o}
+  trx.forEach(t=>{if(t.sample)return;const o=map[dkey(t.time)];if(o){o.n++;o.sales+=t.total;o.sub+=t.sub;o.hpp+=t.hpp||0}});
+  refunds.forEach(r=>{const o=map[dkey(r.time)];if(o){o.refund+=r.amount;o.sub-=r.sub;o.hpp-=r.hppBack||0}});
+  exps.forEach(x=>{const o=map[dkey(x.time)];if(o)o.exp+=x.amount});
+  days.forEach(o=>{o.net=o.sales-o.refund;o.laba=o.sub-o.hpp});return days;
+}
+function renderDays(){
+  const v=$("#dayRange").value,now=new Date(),today=new Date(now.toDateString()),tmr=new Date(today);tmr.setDate(tmr.getDate()+1);
+  let from=new Date(today),to=tmr;
+  if(v==="7"||v==="30")from.setDate(from.getDate()-(+v-1));else if(v==="month")from=new Date(now.getFullYear(),now.getMonth(),1);else{from=new Date(now.getFullYear(),now.getMonth()-1,1);to=new Date(now.getFullYear(),now.getMonth(),1)}
+  const days=dailyIncome(from,to),open=days.filter(o=>o.n||o.refund),sum=f=>days.reduce((a,o)=>a+o[f],0),total=sum("net");
+  const best=open.slice().sort((a,b)=>b.net-a.net)[0],dl=(d,o)=>d.toLocaleDateString("id-ID",o);
+  $("#kDayTotal").textContent=rp(total);$("#kDayAvg").textContent=rp(open.length?total/open.length:0);
+  const hasBest=best&&best.net>0;$("#kDayBest").textContent=hasBest?rp(best.net):"-";$("#kDayBestL").textContent="Hari tertinggi"+(hasBest?" · "+dl(best.date,{weekday:"short",day:"numeric",month:"short"}):"");
+  const max=Math.max(1,...days.map(o=>o.net)),step=days.length>16?5:days.length>10?2:1;
+  const tip=o=>`<b>${dl(o.date,{weekday:"long",day:"numeric",month:"long"})}</b> · pendapatan bersih <b>${rp(o.net)}</b> · ${o.n} transaksi${o.refund?` · refund ${rp(o.refund)}`:""}`;
+  $("#dayChart").innerHTML=days.map((o,i)=>`<button data-di="${i}" class="${o.net>0?"":"zero"}" aria-label="${esc(dl(o.date,{day:"numeric",month:"long"}))}: ${rp(o.net)}"><i style="height:${Math.max(0,o.net)/max*100}%"></i></button>`).join("");
+  $("#dayAxis").innerHTML=days.map((o,i)=>`<span>${(days.length-1-i)%step===0?(step>1||days.length>7?o.date.getDate():dl(o.date,{weekday:"short"})):""}</span>`).join("");
+  const show=i=>{$("#dayTip").innerHTML=tip(days[i]);$("#dayChart").querySelectorAll("button").forEach((b,j)=>b.setAttribute("aria-pressed",j===i))};
+  $("#dayChart").querySelectorAll("button").forEach(b=>{b.onpointerenter=b.onclick=b.onfocus=()=>show(+b.dataset.di)});
+  show(days.length-1);
+  $("#dayRows").innerHTML=days.slice().reverse().map(o=>`<tr><td>${dl(o.date,{weekday:"short",day:"2-digit",month:"short"})}</td><td class="r num">${o.n}</td><td class="r num">${rp(o.sales)}</td><td class="r num">${o.refund?"−"+rp(o.refund):"-"}</td><td class="r num"><b>${rp(o.net)}</b></td><td class="r num">${o.exp?rp(o.exp):"-"}</td><td class="r num">${rp(o.laba)}</td></tr>`).join("");
+  $("#dayFoot").innerHTML=`<tr><td><b>Total</b></td><td class="r num"><b>${sum("n")}</b></td><td class="r num"><b>${rp(sum("sales"))}</b></td><td class="r num"><b>${sum("refund")?"−"+rp(sum("refund")):"-"}</b></td><td class="r num"><b>${rp(total)}</b></td><td class="r num"><b>${rp(sum("exp"))}</b></td><td class="r num"><b>${rp(sum("laba"))}</b></td></tr>`;
+}
+$("#dayRange").onchange=renderDays;
 
 // ---------- stok bahan & HPP ----------
 const num=v=>{v=String(v).trim().replace(/\s/g,"");if(v.includes(","))v=v.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}(\.\d{3})+$/.test(v))v=v.replace(/\./g,"");return Math.max(0,parseFloat(v)||0)};

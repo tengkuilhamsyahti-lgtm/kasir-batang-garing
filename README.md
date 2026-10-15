@@ -58,6 +58,13 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Pendapatan per hari
+
+- Di **Laporan → Pendapatan per hari**: pilih 7 hari, 30 hari, bulan ini, atau bulan lalu.
+- Grafik batang pendapatan bersih per hari (ketuk batang untuk melihat angkanya), total periode, rata-rata per hari buka, dan hari tertinggi.
+- Tabel per tanggal: jumlah transaksi, penjualan, refund, pendapatan bersih, pengeluaran, dan laba kotor, dengan baris total.
+- Dashboard pemilik (Apps Script) juga menampilkan pendapatan 7 hari terakhir.
+
 ## Refund
 
 - Buka dari **Laporan → Refund hari ini → + Refund**, tombol **Refund** di baris transaksi, tombol **Refund** saat membuka struk lama, atau menu nama kasir (pojok kiri bawah) → **Refund**.
