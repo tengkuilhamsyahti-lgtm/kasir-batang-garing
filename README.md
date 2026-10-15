@@ -58,6 +58,12 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Uang diterima dengan nominal bebas
+
+- Di layar pembayaran tunai, ketuk kotak **Uang diterima** untuk mengetik nominal apa pun (mis. 73.500).
+- Atau hitung dari pecahan yang diserahkan pelanggan: ketuk **+1rb, +2rb, +5rb, +10rb, +20rb, +50rb, +100rb** sesuai lembaran uangnya. Rinciannya tampil di bawah, **Batal 1** menghapus pecahan terakhir, **Ulang** mengosongkan.
+- Kembalian dihitung otomatis; tombol Selesaikan baru aktif kalau uangnya cukup.
+
 ## Nama customer & logo di struk
 
 - Tombol **Pilih meja & nama** membuka isian **Nama customer** di bagian atas, lalu pilih meja. Nama yang pernah dipakai muncul sebagai saran. Untuk mengganti nama tanpa pindah meja, ketuk **Simpan nama**.
