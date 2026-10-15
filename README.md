@@ -58,6 +58,16 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Refund
+
+- Buka dari **Laporan → Refund hari ini → + Refund**, tombol **Refund** di baris transaksi, tombol **Refund** saat membuka struk lama, atau menu nama kasir (pojok kiri bawah) → **Refund**.
+- Pilih struk (7 hari terakhir), pilih item dan jumlahnya (bisa sebagian), alasan, dan cara uang dikembalikan (tunai dari laci atau sesuai metode bayar).
+- Kasir butuh **PIN pemilik** untuk menyetujui refund. Pemilik langsung bisa.
+- Centang **Kembalikan bahan ke stok** kalau menu belum dibuat, supaya stok dan HPP ikut kembali.
+- Refund mengurangi omzet hari itu, laba kotor, dan uang yang seharusnya ada di laci shift yang sedang berjalan. Rekap tutup shift dan laporan WhatsApp mencantumkan setiap refund.
+- Bukti refund bisa dicetak. Struk asal yang dicetak ulang menampilkan refund dan sisa bersihnya.
+- Masuk ke sheet **Refund** di spreadsheet dan tampil di dashboard pemilik (tempel ulang `apps-script/Code.gs` lalu deploy versi baru).
+
 ## Pengeluaran & laporan WhatsApp
 
 - **Catat pengeluaran:** saat shift berjalan, buka tab Laporan → **+ Catat pengeluaran**, atau ketuk nama di pojok kiri bawah → **Catat pengeluaran**. Isi jumlah, kategori (es batu, gas, bahan baku, dan lain-lain), keterangan, dan sumber uangnya.

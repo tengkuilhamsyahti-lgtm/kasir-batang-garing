@@ -102,6 +102,7 @@ button{cursor:pointer}
 .tablebtn.set{border-style:solid}
 .konsbtn{margin-left:auto}
 .pill.kons{background:var(--brand-soft);color:var(--brand)}
+.pill.refund{background:var(--surface-2);color:var(--chili);border:1px solid var(--chili)}
 .pill.unpaid{background:var(--chili);color:#fff;letter-spacing:.04em}
 .badge{background:var(--chili);color:#fff;border-radius:999px;min-width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;font-weight:800;padding:0 6px;margin-left:6px}
 .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;max-height:46vh;overflow:auto;padding:2px}
@@ -319,7 +320,8 @@ td.r,th.r{text-align:right}
         <button class="btn ghost" id="syncNow">Kirim ke Spreadsheet</button>
       </div>
       <div class="kpis">
-        <div class="kpi"><div class="l">Omzet</div><div class="v num" id="kOmzet">Rp0</div></div>
+        <div class="kpi"><div class="l">Omzet bersih</div><div class="v num" id="kOmzet">Rp0</div></div>
+        <div class="kpi"><div class="l">Refund</div><div class="v num" id="kRefund">Rp0</div></div>
         <div class="kpi"><div class="l">Transaksi</div><div class="v num" id="kTrx">0</div></div>
         <div class="kpi"><div class="l">Rata-rata per struk</div><div class="v num" id="kAvg">Rp0</div></div>
         <div class="kpi"><div class="l">HPP (modal bahan)</div><div class="v num" id="kHpp">Rp0</div></div>
@@ -339,7 +341,11 @@ td.r,th.r{text-align:right}
         <thead><tr><th>No. Struk</th><th>Jam</th><th>Bayar</th><th class="r">Total</th><th>Spreadsheet</th><th></th></tr></thead>
         <tbody id="trxRows"></tbody>
       </table></div>
-      <div class="panel table-wrap" id="expPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Pengeluaran shift ini <span class="hint" id="expTotal"></span></h3><button class="btn primary sm" id="addExp">+ Catat pengeluaran</button></div><table>
+      <div class="panel table-wrap" id="refPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Refund hari ini <span class="hint" id="refTotal"></span></h3><button class="btn primary sm" id="addRefund" style="flex:0 0 auto">+ Refund</button></div><table>
+        <thead><tr><th>Jam</th><th>Struk asal</th><th>Item &amp; alasan</th><th>Dikembalikan</th><th class="r">Jumlah</th><th></th></tr></thead>
+        <tbody id="refRows"></tbody>
+      </table></div>
+      <div class="panel table-wrap" id="expPanel"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:16px">Pengeluaran shift ini <span class="hint" id="expTotal"></span></h3><button class="btn primary sm" id="addExp" style="flex:0 0 auto">+ Catat pengeluaran</button></div><table>
         <thead><tr><th>Jam</th><th>Kategori</th><th>Keterangan</th><th>Sumber</th><th class="r">Jumlah</th><th></th></tr></thead>
         <tbody id="expRows"></tbody>
       </table></div>
@@ -414,7 +420,7 @@ td.r,th.r{text-align:right}
 <script>
 (()=>{
 const $=s=>document.querySelector(s);
-const rp=n=>"Rp"+Math.round(n).toLocaleString("id-ID");
+const rp=n=>(n<0?"-":"")+"Rp"+Math.abs(Math.round(n)).toLocaleString("id-ID");
 const store={get(k,d){try{const v=localStorage.getItem("bgcafe."+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem("bgcafe."+k,JSON.stringify(v))}catch(e){}}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -423,6 +429,7 @@ let menu=store.get("menu",[]);
 let bahan=store.get("bahan",[]),moves=store.get("moves",[]);
 const saveBahan=()=>store.set("bahan",bahan),saveMoves=()=>store.set("moves",moves);
 let trx=store.get("trx",[]);
+let refunds=store.get("refunds",[]);const saveRefunds=()=>store.set("refunds",refunds);
 let cfg=Object.assign({name:"Batang Garing Coffee",addr:"",tax:0,footer:"Terima kasih sudah ngopi di Batang Garing!",paper:32,autoPrint:1,sheet:"",key:"",wa:""},store.get("cfg",{}));
 let cart=[];let cat="Semua";let q="";
 let orders=store.get("orders",[]);const saveOrders=()=>store.set("orders",orders);
@@ -551,6 +558,8 @@ function receiptText(tr){
   if(tr.tax)out.push(lr(`Pajak ${cfg.tax}%`,n(tr.tax)));
   out.push(lr("TOTAL","Rp"+n(tr.total)),lr(tr.method,n(tr.paid)));
   if(tr.method==="Tunai")out.push(lr("Kembali",n(tr.change)));
+  const rfs=tr.no?refunds.filter(r=>r.trxNo===tr.no):[];
+  if(rfs.length){out.push(line);rfs.forEach(r=>out.push(lr("Refund "+new Date(r.time).toLocaleDateString("id-ID",{day:"2-digit",month:"short"}),"-"+n(r.amount))));out.push(lr("BERSIH","Rp"+n(tr.total-rfs.reduce((a,r)=>a+r.amount,0))))}
   out.push(line,...wrap(cfg.footer||"",W).map(center));
   return out;
 }
@@ -561,8 +570,8 @@ function showReceipt(tr,fresh){
   modal(`<h3>${fresh?"Pembayaran berhasil":"Struk "+tr.no}</h3>
     ${fresh&&tr.method==="Tunai"?`<div class="change"><span>Kembalian</span><b class="num">${rp(tr.change)}</b></div>`:""}
     <div class="receipt">${esc(txt)}</div>
-    <div class="row"><button class="btn ghost" id="rPrint">Cetak struk</button><button class="btn primary" data-close>${fresh?"Pesanan baru":"Tutup"}</button></div>`);
-  $("#rPrint").onclick=()=>printReceipt(tr);
+    <div class="row">${!fresh&&!tr.sample&&openShift()&&trxRefund(tr)<tr.total?`<button class="btn ghost" id="rRefund">Refund</button>`:""}<button class="btn ghost" id="rPrint">Cetak struk</button><button class="btn primary" data-close>${fresh?"Pesanan baru":"Tutup"}</button></div>`);
+  $("#rPrint").onclick=()=>printReceipt(tr);if($("#rRefund"))$("#rRefund").onclick=()=>refundForm(tr);
   if(fresh&&+cfg.autoPrint&&printer)printReceipt(tr);
 }
 
@@ -616,12 +625,12 @@ async function syncOnce(manual){
   const pendS=shifts.filter(s=>s.end&&!s.synced);
   const pendE=exps.filter(x=>!x.synced&&shifts.some(s=>s.id===x.shift&&s.end));
   const pendM=moves.filter(x=>!x.synced);
-  const pendK=kons.filter(x=>!x.synced);
+  const pendK=kons.filter(x=>!x.synced),pendR=refunds.filter(x=>!x.synced);
   if(!cfg.sheet){if(manual)toast("Isi dulu URL Web App di Pengaturan");return}
-  if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length&&!pendK.length){if(manual)toast("Semua transaksi sudah terkirim");return}
+  if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length&&!pendK.length&&!pendR.length){if(manual)toast("Semua transaksi sudah terkirim");return}
   try{
-    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost}))})});
-    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
+    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,refunds:pendR,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost}))})});
+    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();pendR.forEach(x=>x.synced=true);saveRefunds();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
   }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
   if(!$("#v-report").hidden)renderReport();
   updateNet();
@@ -682,20 +691,22 @@ function editItem(id){
 // ---------- laporan ----------
 function renderReport(){
   const today=new Date().toDateString();const list=trx.filter(t=>new Date(t.time).toDateString()===today);
-  const omzet=list.reduce((a,t)=>a+t.total,0);
+  const rfToday=refunds.filter(r=>new Date(r.time).toDateString()===today),rfAmt=rfToday.reduce((a,r)=>a+r.amount,0);
+  const omzet=list.reduce((a,t)=>a+t.total,0)-rfAmt;$("#kRefund").textContent=rfAmt?"−"+rp(rfAmt):rp(0);
   $("#repDate").textContent=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   $("#kOmzet").textContent=rp(omzet);$("#kTrx").textContent=list.length;$("#kAvg").textContent=rp(list.length?omzet/list.length:0);
   $("#kPending").textContent=trx.filter(t=>!t.synced&&!t.sample).length;
-  const hpp=list.reduce((a,t)=>a+(t.hpp||0),0);$("#kHpp").textContent=rp(hpp);$("#kLaba").textContent=rp(list.reduce((a,t)=>a+t.sub,0)-hpp);
+  const hpp=list.reduce((a,t)=>a+(t.hpp||0),0);$("#kHpp").textContent=rp(hpp);$("#kLaba").textContent=rp(list.reduce((a,t)=>a+t.sub,0)-hpp-rfToday.reduce((a,r)=>a+r.sub-r.hppBack,0));
   const used=usageSince(new Date(new Date().toDateString()));$("#usePanel").hidden=!bahan.length;
   $("#useRows").innerHTML=bahan.filter(b=>used[b.id]||isLow(b)).map(b=>`<tr><td>${esc(b.name)}</td><td class="r num">${fq(used[b.id]||0)} ${esc(b.unit)}</td><td class="r num">${fq(b.stock)} ${esc(b.unit)}</td><td>${stockPill(b)}</td></tr>`).join("")||`<tr><td colspan="4" class="hint">Belum ada stok keluar hari ini.</td></tr>`;
   const agg={};list.forEach(t=>t.items.forEach(i=>{agg[i.name]=agg[i.name]||{q:0,v:0};agg[i.name].q+=i.qty;agg[i.name].v+=i.qty*i.price}));
   const top=Object.entries(agg).sort((a,b)=>b[1].v-a[1].v).slice(0,6);const max=top[0]?.[1].v||1;
   $("#bars").innerHTML=top.length?top.map(([n,o])=>`<div class="bar"><span>${esc(n)}</span><div class="track"><div class="fill" style="width:${o.v/max*100}%"></div></div><span class="val">${o.q}× · ${rp(o.v)}</span></div>`).join(""):`<p class="hint">Belum ada penjualan hari ini.</p>`;
-  $("#trxRows").innerHTML=list.slice().reverse().map(t=>`<tr><td class="num">${t.no}</td><td class="num">${new Date(t.time).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</td><td>${t.method}</td><td class="r num">${rp(t.total)}</td>
-    <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><button class="btn ghost sm" data-r="${t.no}">Struk</button></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
+  $("#trxRows").innerHTML=list.slice().reverse().map(t=>`<tr><td class="num">${t.no}</td><td class="num">${new Date(t.time).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</td><td>${t.method} ${refundPill(t)}</td><td class="r num">${rp(t.total)}</td>
+    <td>${t.sample?`<span class="pill wait">Contoh</span>`:t.synced?`<span class="pill ok">Terkirim</span>`:`<span class="pill wait">Menunggu</span>`}</td><td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-r="${t.no}">Struk</button>${!t.sample&&trxRefund(t)<t.total?`<button class="btn ghost sm" data-rfx="${t.no}">Refund</button>`:""}</div></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada transaksi.</td></tr>`;
   $("#trxRows").querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>showReceipt(trx.find(t=>t.no===b.dataset.r)));
-  renderExps();renderKons();
+  $("#trxRows").querySelectorAll("[data-rfx]").forEach(b=>b.onclick=()=>refundForm(trx.find(t=>t.no===b.dataset.rfx)));
+  renderExps();renderKons();renderRefunds();
   const isOwner=me&&me.role==="owner";$("#shiftPanel").hidden=!isOwner;
   if(isOwner){const hm=x=>x?new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Berjalan";
     $("#shiftRows").innerHTML=shifts.slice().reverse().slice(0,30).map(s=>`<tr><td>${esc(s.name)}</td><td class="num">${hm(s.start)}</td><td class="num">${hm(s.end)}</td><td class="r num">${rp(s.openCash)}</td>
@@ -858,10 +869,11 @@ $("#meBtn").onclick=()=>{
   const s=openShift();
   modal(`<h3>${esc(me.name)} · ${me.role==="owner"?"Pemilik":"Kasir"}</h3>
     ${s?`<div class="recap"><div><span>Shift</span><span>${esc(s.name)}</span></div><div><span>Dibuka</span><span>${new Date(s.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</span></div><div><span>Transaksi</span><span>${trx.filter(t=>t.shift===s.id).length}</span></div><div><span>Pengeluaran</span><span>${rp(exps.filter(x=>x.shift===s.id).reduce((a,x)=>a+x.amount,0))}</span></div></div>`:`<p class="hint">Tidak ada shift yang berjalan.</p>`}
-    <div class="row"><button class="btn ghost" id="mLock">Kunci layar</button>${s?`<button class="btn ghost" id="mExp">Catat pengeluaran</button><button class="btn primary" id="mClose">Tutup shift</button>`:me.role==="owner"?`<button class="btn primary" id="mOpen">Buka shift</button>`:""}</div>`);
+    <div class="row"><button class="btn ghost" id="mLock">Kunci layar</button>${s?`<button class="btn ghost" id="mRefund">Refund</button><button class="btn ghost" id="mExp">Catat pengeluaran</button><button class="btn primary" id="mClose">Tutup shift</button>`:me.role==="owner"?`<button class="btn primary" id="mOpen">Buka shift</button>`:""}</div>`);
   $("#mLock").onclick=lock;
   if($("#mClose"))$("#mClose").onclick=closeShiftForm;
   if($("#mExp"))$("#mExp").onclick=()=>expForm();
+  if($("#mRefund"))$("#mRefund").onclick=refundPick;
   if($("#mOpen"))$("#mOpen").onclick=()=>{closeModal();openShiftScreen()};
 };
 function closeShiftForm(){
@@ -875,9 +887,11 @@ function closeShiftForm(){
     const list=trx.filter(t=>t.shift===s.id),cash=list.filter(t=>t.method==="Tunai").reduce((a,t)=>a+t.total,0);
     const byMethod={};list.forEach(t=>byMethod[t.method]=(byMethod[t.method]||0)+t.total);
     const ex=exps.filter(x=>x.shift===s.id),exCash=ex.filter(x=>x.src==="Laci").reduce((a,x)=>a+x.amount,0);
+    const rf=refunds.filter(r=>r.shift===s.id),rfCash=rf.filter(r=>r.method==="Tunai").reduce((a,r)=>a+r.amount,0);
+    s.refund={n:rf.length,total:rf.reduce((a,r)=>a+r.amount,0),cash:rfCash,sub:rf.reduce((a,r)=>a+r.sub,0),hppBack:rf.reduce((a,r)=>a+r.hppBack,0),list:rf.map(r=>({no:r.trxNo,amount:r.amount,method:r.method,reason:r.reason,by:r.approvedBy}))};
     Object.assign(s,{end:new Date().toISOString(),counted:+raw,cashSales:cash,nonCash:list.reduce((a,t)=>a+t.total,0)-cash,byMethod,trxCount:list.length,
-      expTotal:ex.reduce((a,x)=>a+x.amount,0),expCash:exCash,expected:s.openCash+cash-exCash,closedBy:me.name,
-      kons:konsSummary(kons.filter(k=>k.shift===s.id)),unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0),hpp:list.reduce((a,t)=>a+(t.hpp||0),0),usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
+      expTotal:ex.reduce((a,x)=>a+x.amount,0),expCash:exCash,expected:s.openCash+cash-exCash-rfCash,closedBy:me.name,
+      kons:konsSummary(kons.filter(k=>k.shift===s.id)),unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0)-s.refund.sub,hpp:list.reduce((a,t)=>a+(t.hpp||0),0)-s.refund.hppBack,usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
     s.diff=s.counted-s.expected;saveShifts();syncPending(false);showShiftRecap(s);
     if(waNum(cfg.wa))window.open(waLink(waNum(cfg.wa),waText(s)),"_blank","noopener")};
 }
@@ -887,11 +901,12 @@ function shiftLines(s){
   const t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
   return ["REKAP SHIFT",cfg.name,line,lr("Kasir",s.name),lr("Buka",t(s.start)),lr("Tutup",t(s.end)),lr("Transaksi",s.trxCount),line,
     ...Object.entries(s.byMethod).map(([m,v])=>lr(m,n(v))),line,
+    ...(s.refund&&s.refund.n?["REFUND",...s.refund.list.map(r=>lr(r.no+(r.method==="Tunai"?"":"*"),"-"+n(r.amount))),lr("Total refund","-"+n(s.refund.total)),line]:[]),
     ...(shiftExps(s).length?["PENGELUARAN",...shiftExps(s).map(x=>lr(x.cat+(x.src==="Laci"?"":"*"),n(x.amount))),lr("Total pengeluaran",n(s.expTotal||0)),line]:[]),
     ...(s.hpp?[lr("Penjualan (tanpa pajak)",n(s.netSales)),lr("HPP",n(s.hpp)),lr("LABA KOTOR",n(s.netSales-s.hpp)),line]:[]),
     ...(s.kons&&s.kons.qty?["KONSUMSI OWNER/PEGAWAI",...s.kons.people.map(p=>lr(`${p.who} (${p.qty})`,n(p.value))),lr("Nilai jual",n(s.kons.value)),lr("HPP konsumsi",n(s.kons.hpp)),line]:[]),
     ...(s.usage&&s.usage.length?["STOK KELUAR / SISA",...s.usage.map(u=>lr(u.name,fq(u.qty)+" / "+fq(u.left)+" "+u.unit)),line]:[]),
-    lr("Modal awal",n(s.openCash)),lr("Penjualan tunai",n(s.cashSales)),lr("Pengeluaran dr laci",n(s.expCash||0)),
+    lr("Modal awal",n(s.openCash)),lr("Penjualan tunai",n(s.cashSales)),lr("Pengeluaran dr laci",n(s.expCash||0)),...(s.refund&&s.refund.cash?[lr("Refund tunai",n(s.refund.cash))]:[]),
     lr("Seharusnya di laci",n(s.expected)),lr("Uang dihitung",n(s.counted)),lr("SELISIH",(s.diff>0?"+":"")+n(s.diff)),line,lr("Ditutup oleh",s.closedBy),...(shiftExps(s).some(x=>x.src!=="Laci")?["* bukan dari laci kasir"]:[])];
 }
 function showShiftRecap(s){
@@ -899,11 +914,12 @@ function showShiftRecap(s){
   modal(`<h3>Shift ditutup</h3>
     <div class="recap"><div><span>Transaksi</span><span>${s.trxCount}</span></div>
     ${Object.entries(s.byMethod).map(([m,v])=>`<div><span>${esc(m)}</span><span>${rp(v)}</span></div>`).join("")}
+    ${s.refund&&s.refund.n?`<div><span>Refund (${s.refund.n})</span><span>−${rp(s.refund.total)}</span></div>`:""}
     <div><span>Pengeluaran (${shiftExps(s).length})</span><span>${rp(s.expTotal||0)}</span></div>
     ${s.kons&&s.kons.qty?`<div><span>Konsumsi staf (${s.kons.qty} item)</span><span>${rp(s.kons.value)}</span></div>`:""}
     ${s.hpp?`<div><span>HPP</span><span>${rp(s.hpp)}</span></div><div><span>Laba kotor</span><span>${rp(s.netSales-s.hpp)}</span></div>`:""}
     <div><span>Modal awal</span><span>${rp(s.openCash)}</span></div><div><span>Penjualan tunai</span><span>${rp(s.cashSales)}</span></div>
-    <div><span>Pengeluaran dari laci</span><span>−${rp(s.expCash||0)}</span></div>
+    <div><span>Pengeluaran dari laci</span><span>−${rp(s.expCash||0)}</span></div>${s.refund&&s.refund.cash?`<div><span>Refund tunai</span><span>−${rp(s.refund.cash)}</span></div>`:""}
     <div><span>Seharusnya di laci</span><span>${rp(s.expected)}</span></div><div><span>Uang dihitung</span><span>${rp(s.counted)}</span></div></div>
     <div class="change ${d===0?"":"short"}"><span>${d===0?"Kas pas":d>0?"Kas lebih":"Kas kurang"}</span><b class="num">${rp(Math.abs(d))}</b></div>
     ${waNum(cfg.wa)?`<p class="hint">Laporan sudah dibuka di WhatsApp. Kalau belum terkirim, ketuk Kirim ke WhatsApp.${navigator.onLine?"":" Saat ini offline: tekan Kirim di WhatsApp, pesan akan terkirim otomatis begitu internet kembali."}</p>`:`<p class="hint">Nomor WhatsApp penerima belum diisi. Pemilik bisa mengisinya di Atur.</p>`}
@@ -1158,9 +1174,9 @@ function waNum(v){let d=String(v||"").replace(/\D/g,"");if(d.startsWith("0"))d="
 const waLink=(n,t)=>`https://wa.me/${n}?text=${encodeURIComponent(t)}`;
 function waText(s){
   const t=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}),list=shiftExps(s);
-  const omzet=Object.values(s.byMethod).reduce((a,v)=>a+v,0),d=s.diff;
+  const rfT=s.refund?s.refund.total:0,omzet=Object.values(s.byMethod).reduce((a,v)=>a+v,0)-rfT,d=s.diff;
   return [`*LAPORAN TUTUP SHIFT*`,`*${cfg.name}*`,``,`Kasir: ${s.name}`,`Buka: ${t(s.start)}`,`Tutup: ${t(s.end)}`,``,
-    `*Penjualan* (${s.trxCount} transaksi)`,...Object.entries(s.byMethod).map(([m,v])=>`- ${m}: ${rp(v)}`),`Total: *${rp(omzet)}*`,``,
+    `*Penjualan* (${s.trxCount} transaksi)`,...Object.entries(s.byMethod).map(([m,v])=>`- ${m}: ${rp(v)}`),...(rfT?[`- Refund (${s.refund.n}): -${rp(rfT)}`,...s.refund.list.map(r=>`  · ${r.no} ${rp(r.amount)} via ${r.method} (${r.reason}, disetujui ${r.by})`)]:[]),`Total${rfT?" bersih":""}: *${rp(omzet)}*`,``,
     `*Pengeluaran* (${list.length})`,...(list.length?list.map(x=>`- ${x.cat}${x.note?" ("+x.note+")":""}: ${rp(x.amount)}${x.src==="Laci"?"":" [bukan dari laci]"}`):["- Tidak ada"]),
     `Total pengeluaran: *${rp(s.expTotal||0)}*`,``,
     ...(s.hpp?[`*HPP & laba*`,`Penjualan (tanpa pajak): ${rp(s.netSales)}`,`HPP bahan: ${rp(s.hpp)}`,`Laba kotor: *${rp(s.netSales-s.hpp)}*`,``]:[]),
@@ -1168,9 +1184,99 @@ function waText(s){
     ...(s.low&&s.low.length?[`*Stok menipis, perlu belanja:*`,...s.low.map(x=>`- ${x}`),``]:[]),
     ...(s.kons&&s.kons.qty?[`*Konsumsi owner & pegawai* (${s.kons.qty} item)`,...s.kons.people.map(p=>`- ${p.who}: ${p.items} (${rp(p.value)})`),`Nilai jual: ${rp(s.kons.value)} · HPP: ${rp(s.kons.hpp)}`,``]:[]),
     ...(s.unpaid&&s.unpaid.n?[`*Pesanan belum dibayar:* ${s.unpaid.n} (${rp(s.unpaid.total)})`,``]:[]),
-    `*Kas laci*`,`Modal awal: ${rp(s.openCash)}`,`+ Penjualan tunai: ${rp(s.cashSales)}`,`- Pengeluaran dari laci: ${rp(s.expCash||0)}`,`= Seharusnya: ${rp(s.expected)}`,`Dihitung kasir: ${rp(s.counted)}`,
+    `*Kas laci*`,`Modal awal: ${rp(s.openCash)}`,`+ Penjualan tunai: ${rp(s.cashSales)}`,`- Pengeluaran dari laci: ${rp(s.expCash||0)}`,...(s.refund&&s.refund.cash?[`- Refund tunai: ${rp(s.refund.cash)}`]:[]),`= Seharusnya: ${rp(s.expected)}`,`Dihitung kasir: ${rp(s.counted)}`,
     `Selisih: *${d===0?"PAS":(d>0?"LEBIH ":"KURANG ")+rp(Math.abs(d))}*`,``,`Bersih shift (penjualan - pengeluaran): *${omzet<(s.expTotal||0)?"-":""}${rp(Math.abs(omzet-(s.expTotal||0)))}*`].join("\n");
 }
+
+// ---------- refund ----------
+// Refund dicatat terpisah dari transaksi asal: omzet, kas laci, laba kotor, dan stok (opsional) ikut dikoreksi.
+const RF_REASONS=["Salah pesanan","Menu habis / tidak tersedia","Kualitas kurang","Pelanggan batal","Salah input kasir","Lainnya"];
+const trxRefunds=tr=>refunds.filter(r=>r.trxNo===tr.no);
+const trxRefund=tr=>trxRefunds(tr).reduce((a,r)=>a+r.amount,0);
+const refundedQty=(tr,i)=>trxRefunds(tr).reduce((a,r)=>a+(r.items.find(x=>x.idx===i)?.qty||0),0);
+const refundPill=tr=>{const a=trxRefund(tr);return a?`<span class="pill refund">${a>=tr.total?"Refund":"Refund sebagian"}</span>`:""};
+function refundPick(){
+  if(!me)return;if(!openShift())return toast("Buka shift dulu sebelum refund");
+  const since=Date.now()-7*864e5,list=trx.filter(t=>!t.sample&&new Date(t.time)>=since&&trxRefund(t)<t.total).reverse();
+  const hm=x=>new Date(x).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  modal(`<h3>Refund</h3><p class="hint">Pilih struk yang mau direfund (7 hari terakhir). Cari pakai nomor struk, meja, atau nama pemesan.</p>
+    <div class="field"><input id="rfQ" placeholder="mis. ${esc(list[0]?.no||"BG-0001")}" autocomplete="off"></div>
+    <div class="table-wrap" style="max-height:50vh;overflow:auto"><table><tbody id="rfRows"></tbody></table></div>
+    <div class="row"><button class="btn ghost" data-close>Tutup</button></div>`);
+  const draw=()=>{const q=$("#rfQ").value.trim().toLowerCase(),f=list.filter(t=>!q||[t.no,t.table,t.customer].some(v=>String(v||"").toLowerCase().includes(q)));
+    $("#rfRows").innerHTML=f.slice(0,60).map(t=>`<tr><td class="num"><b>${esc(t.no)}</b><div class="hint">${hm(t.time)}${t.table?" · "+(t.table==="TA"?"Bawa pulang":"Meja "+esc(t.table)):""}${t.customer?" · "+esc(t.customer):""}</div></td><td>${esc(t.method)} ${refundPill(t)}</td><td class="r num">${rp(t.total)}</td><td class="r"><button class="btn ghost sm" data-rf="${esc(t.no)}">Pilih</button></td></tr>`).join("")||`<tr><td class="hint">Struk tidak ditemukan.</td></tr>`;
+    $("#rfRows").querySelectorAll("[data-rf]").forEach(b=>b.onclick=()=>refundForm(trx.find(t=>t.no===b.dataset.rf)))};
+  $("#rfQ").oninput=draw;draw();$("#rfQ").focus();
+}
+function refundForm(tr){
+  if(!me)return;if(!openShift())return toast("Buka shift dulu sebelum refund");
+  const left=tr.items.map((l,i)=>l.qty-refundedQty(tr,i));
+  if(left.every(q=>q<=0))return toast(`Struk ${tr.no} sudah direfund penuh`);
+  const owner=me.role==="owner",q=left.map(()=>0),done=trxRefund(tr);
+  modal(`<h3>Refund struk ${esc(tr.no)}</h3>
+    <p class="hint">${new Date(tr.time).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})} · ${esc(tr.method)} · dibayar ${rp(tr.total)}${done?` · sudah direfund ${rp(done)}`:""}</p>
+    <div id="rfItems">${tr.items.map((l,i)=>`<div class="line"><div><div class="n">${esc(l.name)}</div><div class="s">${rp(l.price)} · ${left[i]>0?`bisa refund ${left[i]}`:"sudah direfund"}</div></div>
+      <div class="step"><button data-rd="-1" data-i="${i}" aria-label="Kurangi" ${left[i]>0?"":"disabled"}>−</button><span id="rfq${i}">0</span><button data-rd="1" data-i="${i}" aria-label="Tambah" ${left[i]>0?"":"disabled"}>+</button></div></div>`).join("")}</div>
+    <div><button class="btn ghost sm" id="rfAll" type="button">Pilih semua</button></div>
+    <div class="form-grid"><div class="field"><label for="rfWhy">Alasan</label><select id="rfWhy">${RF_REASONS.map(r=>`<option>${r}</option>`).join("")}</select></div>
+    <div class="field"><label for="rfMethod">Uang dikembalikan lewat</label><select id="rfMethod"><option value="Tunai">Tunai dari laci</option>${tr.method!=="Tunai"?`<option value="${esc(tr.method)}" selected>${esc(tr.method)} (sesuai pembayaran)</option>`:""}</select></div></div>
+    <div class="field"><label for="rfNote">Keterangan (opsional)</label><input id="rfNote" placeholder="mis. es kopi tumpah, diganti uang" autocomplete="off"></div>
+    <label class="hint" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="rfStock" style="width:auto"> Kembalikan bahan ke stok (menu belum dibuat)</label>
+    ${owner?"":pinField("rfPin","PIN pemilik untuk menyetujui")}
+    <div class="recap" id="rfSum"></div>
+    <p class="err" id="rfErr"></p>
+    <div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn danger" id="rfGo" disabled>Proses refund</button></div>`);
+  onlyDigits();
+  const calc=()=>{const sub=tr.items.reduce((a,l,i)=>a+q[i]*l.price,0),full=q.every((v,i)=>v===left[i]);
+    const amount=full?tr.total-done:Math.min(tr.total-done,Math.round(sub*(tr.sub?tr.total/tr.sub:1)));return{sub,tax:amount-sub,amount}};
+  const draw=()=>{q.forEach((v,i)=>$("#rfq"+i).textContent=v);const c=calc();
+    $("#rfSum").innerHTML=`<div><span>Item direfund</span><span>${q.reduce((a,v)=>a+v,0)}</span></div>${c.tax?`<div><span>Termasuk pajak</span><span>${rp(c.tax)}</span></div>`:""}<div><span><b>Total refund</b></span><span><b>${rp(c.amount)}</b></span></div>`;
+    $("#rfGo").disabled=!c.amount};
+  $("#rfItems").querySelectorAll("[data-rd]").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;q[i]=Math.max(0,Math.min(left[i],q[i]+ +b.dataset.rd));draw()});
+  $("#rfAll").onclick=()=>{left.forEach((v,i)=>q[i]=Math.max(0,v));draw()};
+  draw();
+  $("#rfGo").onclick=async()=>{const err=t=>$("#rfErr").textContent=t,c=calc();if(!c.amount)return err("Pilih item yang direfund");
+    let ok=me;if(!owner){const pin=$("#rfPin").value;if(!isPin(pin))return err("Minta pemilik memasukkan PIN 6 angka");
+      ok=null;for(const u of users.filter(x=>x.role==="owner"&&x.active))if(await checkPw(u,pin)){ok=u;break}
+      if(!ok){$("#rfPin").value="";return err("PIN pemilik salah")}}
+    const sh=openShift();if(!sh){closeModal();return toast("Buka shift dulu sebelum refund")}
+    const k=trxRefunds(tr).length,restock=$("#rfStock").checked;
+    const rf={id:uid(),no:"R-"+tr.no+(k?"-"+(k+1):""),trxNo:tr.no,trxTime:tr.time,time:new Date().toISOString(),shift:sh.id,cashier:me.name,approvedBy:ok.name,
+      items:tr.items.map((l,i)=>({idx:i,id:l.id,name:l.name,price:l.price,qty:q[i],hpp:l.hpp||0})).filter(x=>x.qty>0),
+      sub:c.sub,tax:c.tax,amount:c.amount,method:$("#rfMethod").value,reason:$("#rfWhy").value,note:$("#rfNote").value.trim(),restock,hppBack:0,table:tr.table||"",customer:tr.customer||"",synced:false};
+    rf.hpp=rf.items.reduce((a,x)=>a+x.hpp*x.qty,0);
+    if(restock){rf.hppBack=rf.hpp;const use={};
+      rf.items.forEach(x=>{const m=menu.find(y=>y.id===x.id);((m&&m.recipe)||[]).forEach(r=>{if(bahan.some(b=>b.id===r.b))use[r.b]=(use[r.b]||0)+r.q*x.qty})});
+      Object.entries(use).forEach(([id,qty])=>{const b=bahan.find(x=>x.id===id);b.stock=r3(b.stock+qty);
+        moves.push({id:uid(),time:rf.time,bahan:id,name:b.name,unit:b.unit,qty:r3(qty),type:"Refund",note:"Refund "+tr.no,cost:b.cost,shift:sh.id,by:me.name,synced:false})});
+      if(Object.keys(use).length){saveBahan();saveMoves()}}
+    refunds.push(rf);saveRefunds();syncPending(false);
+    if(!$("#v-report").hidden)renderReport();if(!$("#v-stock").hidden)renderStock();renderPos();
+    showRefund(rf,true)};
+}
+function refundLines(rf){
+  const W=+cfg.paper,line="-".repeat(W),n=v=>Math.round(v).toLocaleString("id-ID"),d=new Date(rf.time);
+  const center=s=>{s=String(s).slice(0,W);return " ".repeat(Math.floor((W-s.length)/2))+s};
+  const lr=(l,r)=>{l=String(l);r=String(r);const sp=W-l.length-r.length;return sp>=1?l+" ".repeat(sp)+r:l.slice(0,W-r.length-1)+" "+r};
+  return [center(cfg.name),center("*** REFUND ***"),line,lr("No",rf.no),lr("Struk asal",rf.trxNo),lr("Tanggal",d.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})),
+    lr("Jam",jam(d,true)+(TZ?" "+TZ:"")),lr("Kasir",rf.cashier),...(rf.approvedBy!==rf.cashier?[lr("Disetujui",rf.approvedBy)]:[]),line,
+    ...rf.items.flatMap(i=>[...wrap(i.name,W),lr(`  ${i.qty} x ${n(i.price)}`,"-"+n(i.qty*i.price))]),line,
+    ...(rf.tax?[lr("Pajak","-"+n(rf.tax))]:[]),lr("TOTAL REFUND","Rp"+n(rf.amount)),lr("Dikembalikan",rf.method),line,...wrap("Alasan: "+rf.reason+(rf.note?" - "+rf.note:""),W)];
+}
+function showRefund(rf,fresh){
+  modal(`<h3>${fresh?"Refund berhasil":"Refund "+esc(rf.no)}</h3>
+    <div class="change"><span>${rf.method==="Tunai"?"Kembalikan tunai dari laci":"Kembalikan lewat "+esc(rf.method)}</span><b class="num">${rp(rf.amount)}</b></div>
+    <div class="receipt">${esc(refundLines(rf).join("\n"))}</div>
+    <div class="row"><button class="btn ghost" id="rfPrint">Cetak bukti refund</button><button class="btn primary" data-close>Selesai</button></div>`);
+  $("#rfPrint").onclick=()=>printLines(refundLines(rf));
+}
+function renderRefunds(){
+  const today=new Date().toDateString(),list=refunds.filter(r=>new Date(r.time).toDateString()===today);
+  $("#refTotal").textContent=list.length?`· ${list.length} refund, ${rp(list.reduce((a,r)=>a+r.amount,0))}`:"";
+  $("#refRows").innerHTML=list.slice().reverse().map(r=>`<tr><td class="num">${jam(new Date(r.time))}</td><td class="num">${esc(r.trxNo)}</td><td>${esc(r.items.map(i=>i.qty+"× "+i.name).join(", "))}<div class="hint">${esc(r.reason)}${r.note?" · "+esc(r.note):""} · ${esc(r.cashier)}${r.approvedBy!==r.cashier?", disetujui "+esc(r.approvedBy):""}</div></td><td>${esc(r.method)}</td><td class="r num">${rp(r.amount)}</td><td class="r"><button class="btn ghost sm" data-rv="${r.id}">Bukti</button></td></tr>`).join("")||`<tr><td colspan="6" class="hint">Belum ada refund hari ini.</td></tr>`;
+  $("#refRows").querySelectorAll("[data-rv]").forEach(b=>b.onclick=()=>showRefund(refunds.find(r=>r.id===b.dataset.rv)));
+}
+$("#addRefund").onclick=refundPick;
 
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
 renderPos();applyRole();lockScreen();
