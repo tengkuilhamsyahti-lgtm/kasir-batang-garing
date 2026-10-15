@@ -224,11 +224,12 @@ td.r,th.r{text-align:right}
 #meBtn{margin-top:auto}
 @media (max-width:860px){#meBtn{margin-top:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+#printArea{display:none}
 @media print{
   html{zoom:1!important}
   body *{visibility:hidden}
   #printArea,#printArea *{visibility:visible}
-  #printArea{position:absolute;left:0;top:0;width:58mm;font-family:monospace;font-size:11px;white-space:pre;color:#000}
+  #printArea{display:block;position:absolute;left:0;top:0;width:58mm;font-family:monospace;font-size:11px;white-space:pre;color:#000}
   #printArea img{display:block;width:26mm;margin:0 auto 2mm;filter:grayscale(1) contrast(1.8)}
   @page{size:58mm auto;margin:2mm}
 }
@@ -648,6 +649,7 @@ async function printLines(lines,withLogo){
   if(printer){try{await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e){toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
   $("#printArea").innerHTML=(withLogo?`<img src="${LOGO}" alt="">`:"")+esc(lines.join("\n"));
   try{window.print()}catch(e){}
+  setTimeout(()=>{$("#printArea").innerHTML=""},1500);
 }
 async function connectUsb(){
   if(!navigator.usb)return toast("Browser ini belum mendukung USB. Pakai Chrome atau Edge.");
@@ -1440,7 +1442,7 @@ function renderRefunds(){
 $("#addRefund").onclick=refundPick;
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-15-25";
+const BUILD="2026-10-15-26";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
