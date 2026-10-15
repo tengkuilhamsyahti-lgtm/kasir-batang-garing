@@ -58,6 +58,12 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Laporan:** tab Laporan menampilkan HPP, laba kotor, dan stok keluar hari ini. Rekap tutup shift (cetak dan WhatsApp) memuat HPP, laba kotor, stok keluar beserta sisanya, dan daftar bahan yang perlu dibeli.
 - **Spreadsheet:** sheet `Stok` (riwayat pergerakan), `Sisa Stok` (posisi stok terbaru), kolom HPP dan Laba kotor di `Transaksi`, `Detail Item`, dan `Shift`. Dashboard pemilik menampilkan HPP, laba kotor, dan stok menipis.
 
+## Struk total tutup shift
+
+- Saat shift ditutup, struk total otomatis tercetak kalau printer tersambung (bisa dimatikan di **Atur → Printer**). Kalau belum tersambung, ketuk **Cetak struk total** di layar rekap.
+- Isi struk: kasir, jam buka/tutup, jumlah transaksi, menu terjual (dipisah Kafe dan Ice Cream), pembayaran per metode, total penjualan, refund, total bersih, pengeluaran, HPP dan laba kotor, konsumsi staf, stok keluar/sisa, hitungan kas laci dan selisih, serta kolom tanda tangan kasir.
+- Pemilik bisa mencetak ulang struk total shift mana pun dari **Laporan → Riwayat shift → Struk total**.
+
 ## Ice Cream (terpisah dari menu kafe)
 
 - Kasir, Menu, dan Stok punya tab **Kafe** dan **Ice Cream**. Tab yang dipilih menentukan menu, kategori, dan stok yang tampil. Satu pesanan tetap boleh berisi kopi dan es krim sekaligus.
