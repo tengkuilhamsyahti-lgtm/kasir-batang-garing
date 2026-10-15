@@ -4,9 +4,11 @@
 <style>
 /* Layout: layar kasir dua panel (menu kiri, keranjang kanan), tab bawah di HP */
 :root{
-  --bg:#f0f5f1; --surface:#ffffff; --surface-2:#e3ede6; --line:#d2e0d6;
-  --fg:#13211a; --muted:#57695e;
+  --bg:#f3f6e9; --surface:#ffffff; --surface-2:#e7eed8; --line:#d6e0c4;
+  --fg:#13211a; --muted:#56664f;
   --brand:#1d6b45; --brand-ink:#ffffff; --brand-soft:#dcefe3;
+  --gold:#f2b705; --gold-ink:#2b2100; --gold-soft:#fdf0c2;
+  --rail:#1d6b45; --rail-fg:#d8ecdf;
   --chili:#c8501e; --chili-soft:#fbe5d8;
   --ok:#157a46; --warn:#a96300;
   --f-ui:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -14,14 +16,18 @@
   --r:14px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0d1511; --surface:#15201a; --surface-2:#1d2b23; --line:#2a3b31;
-  --fg:#e5f0e8; --muted:#9bb2a4;
+  --bg:#0f1610; --surface:#171f17; --surface-2:#202b1e; --line:#30402c;
+  --fg:#e9f0e2; --muted:#a3b39a;
   --brand:#5ccf8e; --brand-ink:#08170e; --brand-soft:#1b3727;
+  --gold:#f5c518; --gold-ink:#231a00; --gold-soft:#3a3110;
+  --rail:#123d28; --rail-fg:#b9d8c4;
   --chili:#ff7a5c; --chili-soft:#3a2019; --ok:#5fd18a; --warn:#f0b357; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0d1511; --surface:#15201a; --surface-2:#1d2b23; --line:#2a3b31;
-  --fg:#e5f0e8; --muted:#9bb2a4;
+  --bg:#0f1610; --surface:#171f17; --surface-2:#202b1e; --line:#30402c;
+  --fg:#e9f0e2; --muted:#a3b39a;
   --brand:#5ccf8e; --brand-ink:#08170e; --brand-soft:#1b3727;
+  --gold:#f5c518; --gold-ink:#231a00; --gold-soft:#3a3110;
+  --rail:#123d28; --rail-fg:#b9d8c4;
   --chili:#ff7a5c; --chili-soft:#3a2019; --ok:#5fd18a; --warn:#f0b357; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -223,6 +229,33 @@ td.r,th.r{text-align:right}
 .diff-bad{color:var(--chili);font-weight:700}
 #meBtn{margin-top:auto}
 @media (max-width:860px){#meBtn{margin-top:0}}
+/* Tema hijau-kuning */
+.rail{background:var(--rail);border-color:transparent}
+.rail .nav{color:var(--rail-fg)}
+.rail .nav[aria-current="page"]{background:var(--gold);color:var(--gold-ink)}
+.rail .logo{box-shadow:0 0 0 3px var(--gold)}
+.rail .avatar{background:var(--gold);color:var(--gold-ink)}
+.chip[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.divtabs button[aria-selected="true"]{box-shadow:inset 0 -3px 0 var(--gold),0 1px 3px rgba(0,0,0,.12)}
+.item .qty,.badge{background:var(--gold);color:var(--gold-ink)}
+.topbar h1{background:linear-gradient(transparent 62%,var(--gold-soft) 62%);padding:0 2px}
+.btn.primary{box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+/* Layar PIN: muat satu layar tanpa digulir */
+.lock{display:flex;place-items:unset}
+.lock-card{margin:auto;gap:14px;padding:22px}
+.lock-card .lock-brand{padding-bottom:12px;border-bottom:3px solid var(--gold)}
+.lock-card .lock-brand .logo{display:block;box-shadow:0 0 0 3px var(--gold)}
+.lock-split{display:grid;gap:14px}
+.lock-col{display:grid;gap:12px;align-content:start;min-width:0}
+.lock .pin-in{font-size:24px;padding:8px!important}
+.lock .keypad{gap:8px}
+.lock .keypad button{padding:12px 0;font-size:21px}
+.lock .user-btn{padding:10px 8px}
+.lock .avatar{width:38px;height:38px}
+@media (min-width:720px) and (orientation:landscape){
+  .lock-card.split{width:min(860px,100%)}
+  .lock-card.split .lock-split{grid-template-columns:1fr 1fr;gap:28px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 #printArea{display:none}
 @media print{
@@ -843,19 +876,19 @@ const pinField=(id,label)=>`<div class="field"><label for="${id}">${label}</labe
 const onlyDigits=()=>document.querySelectorAll(".pin-in").forEach(i=>i.addEventListener("input",()=>{if(!i.dataset.free)i.value=i.value.replace(/\D/g,"").slice(0,6)}));
 const recoveryCode=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(8));return [...r].map(x=>a[x%a.length]).join("").replace(/(.{4})/,"$1-")};
 
-function lockShell(inner){$("#lock").innerHTML=`<div class="lock-card" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" role="img" aria-label="Logo Batang Garing Coffee" style="margin:0;width:64px;height:64px"></div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
+function lockShell(inner,split){$("#lock").innerHTML=`<div class="lock-card${split?" split":""}" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" role="img" aria-label="Logo Batang Garing Coffee" style="margin:0;width:64px;height:64px"></div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
 
 function lock(){me=null;closeModal();$("#cart").classList.remove("open");clearTimeout(idleT);applyRole();lockScreen()}
 function lockScreen(){
   if(!users.length)return setupScreen();
   const os=openShift(),active=users.filter(u=>u.active);let pick=os?active.find(u=>u.id===os.userId):active.length===1?active[0]:null;
-  lockShell(`${os?`<div class="banner">Shift <b>${esc(os.name)}</b> sedang berjalan sejak ${new Date(os.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}. Hanya ${esc(os.name)} atau pemilik yang bisa masuk.</div>`:""}
-    <div><div class="field"><label>Siapa yang bertugas?</label></div><div class="users" style="margin-top:8px">${active.map(u=>`<button class="user-btn" data-u="${u.id}" aria-pressed="${pick&&pick.id===u.id}"><span class="avatar">${esc(initials(u.name))}</span>${esc(u.name)}<small>${u.role==="owner"?"Pemilik":"Kasir"}</small></button>`).join("")}</div></div>
-    <div class="field"><label for="lPw">PIN (6 angka)</label><input id="lPw" class="pin-in" type="password" inputmode="none" autocomplete="off" placeholder="••••••"></div>
+  lockShell(`<div class="lock-split"><div class="lock-col">${os?`<div class="banner">Shift <b>${esc(os.name)}</b> sedang berjalan sejak ${new Date(os.start).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}. Hanya ${esc(os.name)} atau pemilik yang bisa masuk.</div>`:""}
+    <div><div class="field"><label>Siapa yang bertugas?</label></div><div class="users" style="margin-top:8px">${active.map(u=>`<button class="user-btn" data-u="${u.id}" aria-pressed="${pick&&pick.id===u.id}"><span class="avatar">${esc(initials(u.name))}</span>${esc(u.name)}<small>${u.role==="owner"?"Pemilik":"Kasir"}</small></button>`).join("")}</div></div></div>
+    <div class="lock-col"><div class="field"><label for="lPw">PIN (6 angka)</label><input id="lPw" class="pin-in" type="password" inputmode="none" autocomplete="off" placeholder="••••••"></div>
     <div class="keypad" id="keypad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")}<button data-k="del" aria-label="Hapus">⌫</button><button data-k="0">0</button><button class="k-ok" id="lGo">Masuk</button></div>
     <p class="err" id="lErr"></p>
     <button class="linkbtn" id="lKbd">PIN lama berisi huruf? Pakai keyboard</button>
-    <button class="linkbtn" id="lForgot">Lupa PIN pemilik?</button>`);
+    <button class="linkbtn" id="lForgot">Lupa PIN pemilik?</button></div></div>`,true);
   document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lPw").focus()});
   const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
@@ -1442,7 +1475,7 @@ function renderRefunds(){
 $("#addRefund").onclick=refundPick;
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-15-26";
+const BUILD="2026-10-15-27";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
