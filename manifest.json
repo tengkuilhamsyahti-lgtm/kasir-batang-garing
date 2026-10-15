@@ -1,2 +1,2 @@
 {"name":"Kasir Batang Garing Coffee","short_name":"BG Kasir","start_url":"./","display":"standalone","orientation":"any","background_color":"#f0f5f1","theme_color":"#1d6b45",
- "icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+ "icons":[{"src":"logo-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"logo-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
