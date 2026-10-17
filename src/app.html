@@ -440,6 +440,20 @@ td.r,th.r{text-align:right}
         <div class="field"><label for="sKey">Kunci rahasia (harus sama dengan di Apps Script)</label><input id="sKey" placeholder="mis. warung-2026"></div>
         <div class="row"><button class="btn primary" id="saveSettings">Simpan pengaturan</button><button class="btn ghost" id="openDash">Buka dashboard pemilik</button></div>
       </div>
+      <div class="panel" style="display:grid;gap:12px" id="cloudPanel">
+        <h3 style="margin:0;font-size:16px"><span class="status-dot" id="clDot"></span>Simpan data di cloud (Supabase)</h3>
+        <p class="hint">Data kasir (menu, transaksi, stok, shift, pengguna) disimpan juga di Supabase, jadi aman kalau tablet rusak dan bisa dipakai di beberapa perangkat dengan akun yang sama. Kasir tetap jalan saat offline, data dikirim begitu internet tersambung.</p>
+        <div class="form-grid">
+          <div class="field"><label for="clEmail">Email akun cloud</label><input id="clEmail" type="email" autocomplete="username"></div>
+          <div class="field"><label for="clPw">Kata sandi akun cloud</label><input id="clPw" type="password" autocomplete="current-password"></div>
+        </div>
+        <details><summary class="hint" style="cursor:pointer">Pengaturan lanjutan (project Supabase lain)</summary><div class="form-grid" style="margin-top:10px">
+          <div class="field"><label for="clUrl">Project URL</label><input id="clUrl" placeholder="https://xxxx.supabase.co" autocomplete="off"></div>
+          <div class="field"><label for="clKey">Anon / publishable key</label><input id="clKey" placeholder="eyJ… atau sb_publishable_…" autocomplete="off"></div>
+        </div></details>
+        <div class="row"><button class="btn primary" id="clLogin">Masuk & sinkron</button><button class="btn ghost" id="clSignup">Buat akun baru</button><button class="btn ghost" id="clNow">Sinkron sekarang</button><button class="btn ghost" id="clOut">Keluar</button></div>
+        <p class="hint" id="clStatus">Belum tersambung.</p>
+      </div>
       <div class="panel" style="display:grid;gap:12px">
         <h3 style="margin:0;font-size:16px">Pengguna & keamanan</h3>
         <p class="hint">Setiap kasir masuk dengan PIN 6 angka sendiri dan membuka shift dengan modal awal. Menu, laporan shift, dan pengaturan hanya bisa dibuka pemilik.</p>
@@ -820,7 +834,7 @@ function renderReport(){
 }
 
 // ---------- pengaturan ----------
-function fillSettings(){renderUsers();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
+function fillSettings(){renderUsers();fillCloud();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
 $("#saveSettings").onclick=()=>{cfg={...cfg,name:$("#sName").value.trim()||"Batang Garing Coffee",addr:$("#sAddr").value.trim(),tax:+$("#sTax").value||0,footer:$("#sFooter").value,paper:+$("#sPaper").value,autoPrint:+$("#sAutoPrint").value,autoShift:+$("#sAutoShift").value,receiptLogo:+$("#sLogo").value,sheet:$("#sSheet").value.trim(),key:$("#sKey").value.trim()};saveCfg();fillSettings();toast("Pengaturan disimpan");syncPending(false)};
 $("#openDash").onclick=()=>{if(!cfg.sheet)return toast("Isi dulu URL Web App");const u=cfg.sheet+"?key="+encodeURIComponent(cfg.key);
   modal(`<h3>Dashboard pemilik</h3><p class="hint">Buka link ini di HP pemilik dan simpan sebagai bookmark. Isinya omzet hari ini dan transaksi terakhir, diperbarui otomatis.</p><div class="receipt" style="white-space:normal;word-break:break-all;max-width:none">${esc(u)}</div><div class="row"><button class="btn ghost" id="cpy">Salin link</button><a class="btn primary" style="text-align:center;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Buka</a></div>`);
@@ -913,8 +927,9 @@ function setupScreen(){
   lockShell(`<div><b style="font-size:17px">Buat akun pemilik</b><p class="hint" style="margin-top:4px">Akun ini memegang akses penuh: menu, pengaturan, kasir, dan laporan shift. Kasir lain ditambahkan setelah ini.</p></div>
     <div class="field"><label for="oName">Nama pemilik</label><input id="oName" placeholder="mis. Tengku" autocomplete="name"></div>
     ${pinField("oPw","PIN (6 angka)")}${pinField("oPw2","Ulangi PIN")}
-    <p class="err" id="oErr"></p><button class="btn primary" id="oGo">Buat akun</button>`);
-  onlyDigits();$("#oName").focus();
+    <p class="err" id="oErr"></p><button class="btn primary" id="oGo">Buat akun</button>
+    <button class="linkbtn" id="oCloud">Data kasir sudah ada di cloud? Ambil dari Supabase</button>`);
+  onlyDigits();$("#oName").focus();$("#oCloud").onclick=cloudRestoreScreen;
   $("#oGo").onclick=async()=>{const err=t=>$("#oErr").textContent=t,name=$("#oName").value.trim(),pw=$("#oPw").value;
     if(!name)return err("Nama wajib diisi");if(!isPin(pw))return err(PIN_ERR);if(pw!==$("#oPw2").value)return err("Kedua PIN tidak sama");
     const u=await makeUser(name,"owner",pw);const code=recoveryCode();const rs=uid()+uid();
@@ -1474,8 +1489,100 @@ function renderRefunds(){
 }
 $("#addRefund").onclick=refundPick;
 
+// ---------- cloud Supabase: sinkron data dua arah per catatan ----------
+// Tabel kasir_data(owner,coll,id,data,updated_at,deleted), dilindungi RLS: tiap akun hanya melihat datanya sendiri.
+const CLOUD_COLLS=["menu","bahan","moves","trx","refunds","orders","kons","users","shifts","exps"];
+// Project Supabase Batang Garing (kunci publishable memang boleh ada di aplikasi; data dilindungi login + RLS)
+const CLOUD_DEF={url:"https://fxcqmrkrmoyxpblhpnqz.supabase.co",key:"sb_publishable_C5VWXNx6cMD1oddjhOrWMg_Wo4or50q"};
+let cloud=Object.assign({url:CLOUD_DEF.url,key:CLOUD_DEF.key,email:"",session:null,last:null,hash:{}},store.get("cloud",{}));
+const clSave=()=>store.set("cloud",cloud);
+const collGet=k=>({menu,bahan,moves,trx,refunds,orders,kons,users,shifts,exps})[k];
+function collSet(k,v){switch(k){case"menu":menu=v;break;case"bahan":bahan=v;break;case"moves":moves=v;break;case"trx":trx=v;break;case"refunds":refunds=v;break;
+  case"orders":orders=v;break;case"kons":kons=v;break;case"users":users=v;break;case"shifts":shifts=v;break;case"exps":exps=v;break}store.set(k,v)}
+const recId=r=>String(r.id??r.no??"");
+const strip=r=>{const{synced,...o}=r;return o};
+const canon=x=>Array.isArray(x)?"["+x.map(canon).join(",")+"]":x&&typeof x==="object"?"{"+Object.keys(x).sort().filter(k=>x[k]!==undefined).map(k=>JSON.stringify(k)+":"+canon(x[k])).join(",")+"}":JSON.stringify(x??null);
+const hsh=x=>{const t=canon(x);let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return h.toString(36)};
+async function clFetch(path,opt={},retry=true){
+  const base=cloud.url.replace(/\/+$/,"");
+  const r=await fetch(base+path,{...opt,headers:{apikey:cloud.key,"Content-Type":"application/json",...(cloud.session?{Authorization:"Bearer "+cloud.session.access_token}:{}),...(opt.headers||{})}});
+  if(r.status===401&&retry&&cloud.session?.refresh_token&&await clRefresh())return clFetch(path,opt,false);
+  if(!r.ok){let m=r.status+"";try{const j=await r.json();m=j.msg||j.message||j.error_description||j.error||m}catch(e){}throw new Error(m)}
+  return r.status===204?null:r.json().catch(()=>null)}
+async function clAuth(body,grant){const s=await clFetch(grant?"/auth/v1/token?grant_type="+grant:"/auth/v1/signup",{method:"POST",body:JSON.stringify(body)},false);
+  if(s&&s.access_token){cloud.session={access_token:s.access_token,refresh_token:s.refresh_token,user:s.user?.id};clSave();return true}return false}
+async function clRefresh(){try{const t=cloud.session.refresh_token;cloud.session=null;return await clAuth({refresh_token:t},"refresh_token")}catch(e){clSave();return false}}
+let clBusy=false,clTimer=null;
+async function cloudSync(manual){
+  if(clBusy||!cloud.session||!navigator.onLine)return;clBusy=true;clUi("Menyinkronkan…");
+  try{
+    // 1) ambil perubahan dari cloud sejak sinkron terakhir
+    let changed=false,since=cloud.last?new Date(Date.parse(cloud.last)-15000).toISOString():"1970-01-01T00:00:00Z",newest=cloud.last||since; // mundur 15 detik untuk jaga-jaga
+    for(let page=0;page<50;page++){
+      const rows=await clFetch(`/rest/v1/kasir_data?select=coll,id,data,deleted,updated_at&updated_at=gt.${encodeURIComponent(since)}&order=updated_at.asc&limit=1000`);
+      if(!rows.length)break;
+      const by={};rows.forEach(r=>(by[r.coll]=by[r.coll]||[]).push(r));
+      for(const [k,list] of Object.entries(by)){
+        if(k==="cfg"){const r=list[list.length-1];if(!r.deleted&&hsh(r.data)!==cloud.hash.cfg?.cfg){cfg=Object.assign(cfg,r.data);store.set("cfg",cfg);changed=true}cloud.hash.cfg={cfg:hsh(strip(cfg))};continue}
+        if(!CLOUD_COLLS.includes(k))continue;
+        const arr=collGet(k).slice(),idx=new Map(arr.map((x,i)=>[recId(x),i])),hs=cloud.hash[k]=cloud.hash[k]||{};
+        list.forEach(r=>{const i=idx.get(r.id),dh=r.deleted?null:hsh(r.data);
+          if(!r.deleted&&hs[r.id]===dh)return; // versi ini sudah kita punya (biasanya kiriman kita sendiri)
+          if(r.deleted){if(i!==undefined){arr[i]=null;changed=true}delete hs[r.id];return}
+          const old=i!==undefined?arr[i]:null;if(old&&hsh(strip(old))===dh){hs[r.id]=dh;return}
+          const rec={...r.data};if("synced" in (old||{}))rec.synced=old.synced;else if(["trx","shifts","exps","kons","refunds","moves"].includes(k))rec.synced=true;
+          if(i!==undefined)arr[i]=rec;else{idx.set(r.id,arr.length);arr.push(rec)}hs[r.id]=dh;changed=true});
+        let out=arr.filter(Boolean);if(["trx","moves","shifts","exps","kons","refunds"].includes(k))out.sort((a,b)=>String(a.time||a.start||"").localeCompare(String(b.time||b.start||"")));
+        collSet(k,out)}
+      if(rows[rows.length-1].updated_at>newest)newest=rows[rows.length-1].updated_at;since=rows[rows.length-1].updated_at;if(rows.length<1000)break}
+    cloud.last=newest;
+    // 2) kirim catatan lokal yang berubah atau terhapus
+    const up=[];
+    CLOUD_COLLS.forEach(k=>{const hs=cloud.hash[k]=cloud.hash[k]||{},seen=new Set();
+      collGet(k).forEach(r=>{const id=recId(r);if(!id)return;seen.add(id);const d=strip(r),h=hsh(d);if(hs[id]!==h){up.push({coll:k,id,data:d,deleted:false,_h:h})}});
+      Object.keys(hs).forEach(id=>{if(!seen.has(id))up.push({coll:k,id,data:{},deleted:true,_h:null})})});
+    const ch=hsh(strip(cfg));if(cloud.hash.cfg?.cfg!==ch)up.push({coll:"cfg",id:"cfg",data:strip(cfg),deleted:false,_h:ch});
+    for(let i=0;i<up.length;i+=300){const part=up.slice(i,i+300);
+      await clFetch("/rest/v1/kasir_data?on_conflict=owner,coll,id",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(part.map(({_h,...r})=>r))});
+      part.forEach(r=>{const hs=cloud.hash[r.coll]=cloud.hash[r.coll]||{};if(r.deleted)delete hs[r.id];else hs[r.id]=r._h})}
+    clSave();
+    if(changed&&!document.querySelector("#modal .scrim")&&me){const v=["pos","menu","stock","report"].find(k=>!$("#v-"+k).hidden);if(v)show(v)}
+    clUi(`Tersambung sebagai ${cloud.email}. Sinkron terakhir ${jam(new Date())}${up.length?`, ${up.length} perubahan dikirim`:""}.`,true);
+    if(manual)toast("Data cloud sudah sinkron");
+  }catch(e){clUi("Gagal sinkron: "+e.message);if(manual)toast("Gagal sinkron: "+e.message)}
+  finally{clBusy=false}}
+function clUi(t,ok){const st=$("#clStatus");if(st)st.textContent=t;$("#clDot")?.classList.toggle("on",!!ok&&!!cloud.session)}
+function clSoon(){clearTimeout(clTimer);clTimer=setTimeout(()=>cloudSync(false),3000)}
+// setiap penyimpanan data memicu sinkron beberapa detik kemudian
+const _set=store.set;store.set=(k,v)=>{_set(k,v);if(cloud.session&&(CLOUD_COLLS.includes(k)||k==="cfg"))clSoon()};
+function fillCloud(){$("#clUrl").value=cloud.url;$("#clKey").value=cloud.key;$("#clEmail").value=cloud.email;$("#clPw").value="";
+  clUi(cloud.session?`Tersambung sebagai ${cloud.email}.`:"Belum tersambung.",!!cloud.session)}
+async function clLogin(signup,p="cl"){
+  cloud.url=($("#"+p+"Url")?.value||cloud.url||CLOUD_DEF.url).trim();cloud.key=($("#"+p+"Key")?.value||cloud.key||CLOUD_DEF.key).trim();cloud.email=$("#"+p+"Email").value.trim();const pw=$("#"+p+"Pw").value;
+  if(!/^https?:\/\/.+/.test(cloud.url)||!cloud.key)return toast("Isi Project URL dan anon key dulu");
+  if(!cloud.email||pw.length<6)return toast("Isi email dan kata sandi (minimal 6 karakter)");
+  cloud.session=null;cloud.last=null;cloud.hash={};clSave();clUi(signup?"Membuat akun…":"Masuk…");
+  try{const ok=signup?await clAuth({email:cloud.email,password:pw}):await clAuth({email:cloud.email,password:pw},"password");
+    if(!ok){clUi("Akun dibuat. Buka email Anda dan klik link konfirmasi dari Supabase, lalu ketuk Masuk & sinkron.");return}
+    $("#"+p+"Pw").value="";toast("Tersambung ke cloud");await cloudSync(true)}
+  catch(e){clUi((signup?"Gagal membuat akun: ":"Gagal masuk: ")+e.message)}}
+// perangkat baru: ambil semua data (termasuk akun pemilik & kasir) dari cloud sebelum membuat akun
+function cloudRestoreScreen(){
+  lockShell(`<div><b style="font-size:17px">Ambil data dari cloud</b><p class="hint" style="margin-top:4px">Masuk dengan akun cloud yang sama dengan tablet kasir utama. Menu, transaksi, stok, dan akun kasir akan diunduh ke perangkat ini.</p></div>
+    <div class="field"><label for="rcEmail">Email akun cloud</label><input id="rcEmail" type="email" autocomplete="username"></div>
+    <div class="field"><label for="rcPw">Kata sandi akun cloud</label><input id="rcPw" type="password" autocomplete="current-password"></div>
+    <p class="hint" id="rcStatus"></p><button class="btn primary" id="rcGo">Masuk & ambil data</button><button class="linkbtn" id="rcBack">Kembali</button>`);
+  $("#rcEmail").value=cloud.email;$("#rcBack").onclick=setupScreen;
+  $("#rcGo").onclick=async()=>{$("#rcStatus").textContent="Mengambil data…";await clLogin(false,"rc");
+    if(users.length){toast(`Data cloud dimuat: ${menu.length} menu, ${trx.length} transaksi`);renderPos();lockScreen()}
+    else $("#rcStatus").textContent=cloud.session?"Tersambung, tapi akun cloud ini belum berisi data kasir.":($("#clStatus").textContent||"Gagal masuk")}}
+$("#clLogin").onclick=()=>clLogin(false);$("#clSignup").onclick=()=>clLogin(true);
+$("#clNow").onclick=()=>cloud.session?cloudSync(true):toast("Masuk ke akun cloud dulu");
+$("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar dari cloud. Data di tablet tetap ada.")};
+setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
+
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-15-27";
+const BUILD="2026-10-17-28";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";

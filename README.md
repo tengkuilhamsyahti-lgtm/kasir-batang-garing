@@ -155,3 +155,14 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 ## Cetak penjualan per produk
 
 Di **Laporan → Penjualan per produk**, pilih periode (Hari ini, Kemarin, 7 hari terakhir, Bulan ini, Bulan lalu). Tabel menampilkan nama produk, jumlah terjual, dan pendapatannya, dipisah Kafe dan Ice Cream. Angka sudah dikurangi refund. Ketuk **Cetak** untuk melihat contoh struk lalu cetak ke printer thermal: daftar produk, subtotal per bagian, jumlah item, jumlah transaksi, dan TOTAL PENDAPATAN.
+
+## Simpan data di cloud (Supabase)
+
+Data kasir (menu, transaksi, stok, shift, pengeluaran, refund, akun kasir, pengaturan) bisa disimpan juga di Supabase project **kasir-batang-garing**. Tabelnya `kasir_data` (lihat `supabase/schema.sql`), dilindungi Row Level Security: setiap akun cloud hanya bisa membaca dan menulis datanya sendiri.
+
+1. Buka kasir sebagai pemilik → **Atur → Simpan data di cloud**.
+2. Pertama kali: isi email dan kata sandi, ketuk **Buat akun baru**, lalu klik link konfirmasi di email dari Supabase. Setelah itu ketuk **Masuk & sinkron**.
+3. Sinkron berjalan otomatis beberapa detik setelah ada perubahan dan setiap 30 detik. Saat offline, kasir tetap jalan dan data dikirim begitu internet kembali.
+4. Perangkat baru (tablet kedua, HP, laptop): di layar **Buat akun pemilik**, ketuk **Data kasir sudah ada di cloud? Ambil dari Supabase**, lalu masuk dengan akun cloud yang sama. Akun kasir dan PIN ikut terunduh.
+
+Kalau dua perangkat mengubah catatan yang sama, perubahan terakhir yang menang.
