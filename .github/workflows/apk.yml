@@ -34,7 +34,9 @@ jobs:
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KS_PASS=$KS_PASS_SECRET" >> "$GITHUB_ENV"
+            echo "Kunci tanda tangan: TETAP (dari secret KEYSTORE_BASE64)"
           else
+            echo "::warning::Secret KEYSTORE_BASE64 belum ada, memakai kunci acak (bar URL akan muncul)"
             P=$(openssl rand -hex 16)
             keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -alias kasir -keyalg RSA -keysize 2048 \
               -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=Batang Garing Coffee, O=Batang Garing, C=ID"
@@ -53,6 +55,8 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk KasirBatangGaring.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
           "$BT"apksigner verify --print-certs KasirBatangGaring.apk | tee sertifikat.txt
+          grep -qi "SHA-256 digest: cdf5dc7b3c9d5df041a06f40ac01a0f8192aed836b1ce40c9b54c823096f1f2e" sertifikat.txt \
+            && echo "Sidik jari cocok dengan assetlinks.json" || echo "::warning::Sidik jari APK tidak cocok dengan assetlinks.json"
 
       - uses: actions/upload-artifact@v4
         with:
