@@ -257,6 +257,8 @@ td.r,th.r{text-align:right}
 .lock-card{margin:auto;gap:14px;padding:22px}
 .lock-card .lock-brand{padding-bottom:12px;border-bottom:3px solid var(--gold)}
 .lock-card .lock-brand .logo{display:block;box-shadow:0 0 0 3px var(--gold)}
+.lock .keypad.off button,.lock .pin-in:disabled{opacity:.4;cursor:not-allowed}
+.lock .pin-in:disabled::placeholder{letter-spacing:0;font-size:16px;font-family:var(--f-ui)}
 .lock-split{display:grid;gap:14px}
 .lock-col{display:grid;gap:12px;align-content:start;min-width:0}
 .lock .pin-in{font-size:24px;padding:8px!important}
@@ -915,7 +917,10 @@ function lockScreen(){
     <p class="err" id="lErr"></p>
     <button class="linkbtn" id="lKbd">PIN lama berisi huruf? Pakai keyboard</button>
     <button class="linkbtn" id="lForgot">Lupa PIN pemilik?</button></div></div>`,true);
-  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lPw").focus()});
+  // PIN baru bisa diisi setelah staf dipilih
+  const pinLock=()=>{const off=!pick;$("#lPw").disabled=off;$("#lPw").placeholder=off?"Pilih nama dulu":"••••••";$("#lKbd").disabled=off;
+    document.querySelectorAll("#keypad button").forEach(b=>b.disabled=off);$("#keypad").classList.toggle("off",off);if(off)$("#lPw").value=""};
+  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lErr").textContent="";pinLock();$("#lPw").focus()});
   const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
     if(!pick)return err("Pilih nama Anda dulu");
@@ -933,7 +938,7 @@ function lockScreen(){
     if(!i.dataset.free&&i.value.length===6){if(pick)tryGo();else $("#lErr").textContent="Pilih nama Anda dulu"}});
   $("#lKbd").onclick=()=>{const i=$("#lPw");i.dataset.free=1;i.inputMode="text";i.removeAttribute("maxlength");i.focus();$("#lKbd").hidden=true};
   $("#lForgot").onclick=forgotScreen;
-  if(pick)$("#lPw").focus();
+  pinLock();if(pick)$("#lPw").focus();
 }
 function setupScreen(){
   lockShell(`<div><b style="font-size:17px">Buat akun pemilik</b><p class="hint" style="margin-top:4px">Akun ini memegang akses penuh: menu, pengaturan, kasir, dan laporan shift. Kasir lain ditambahkan setelah ini.</p></div>
@@ -1594,7 +1599,7 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-17-29";
+const BUILD="2026-10-17-30";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
