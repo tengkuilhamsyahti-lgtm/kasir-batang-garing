@@ -852,14 +852,31 @@ $("#sIdle").onchange=()=>{cfg.idle=+$("#sIdle").value;saveCfg();resetIdle();toas
 function renderUsers(){
   $("#userRows").innerHTML=users.map(u=>`<tr><td><b>${esc(u.name)}</b>${me&&u.id===me.id?" (Anda)":""}</td><td>${u.role==="owner"?"Pemilik":"Kasir"}</td>
     <td>${u.active?`<span class="pill ok">Aktif</span>`:`<span class="pill wait">Nonaktif</span>`}${u.pin?"":` <span class="pill wait">Belum PIN 6 angka</span>`}</td>
-    <td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-pw="${u.id}">Ganti PIN</button>${me&&u.id!==me.id?`<button class="btn ghost sm" data-act="${u.id}">${u.active?"Nonaktifkan":"Aktifkan"}</button>`:""}</div></td></tr>`).join("");
+    <td class="r"><div class="row" style="justify-content:end;gap:6px"><button class="btn ghost sm" data-rn="${u.id}">Ubah nama</button><button class="btn ghost sm" data-pw="${u.id}">Ganti PIN</button>${me&&u.id!==me.id?`<button class="btn ghost sm" data-act="${u.id}">${u.active?"Nonaktifkan":"Aktifkan"}</button>`:""}</div></td></tr>`).join("");
   $("#userRows").querySelectorAll("[data-pw]").forEach(b=>b.onclick=()=>userForm(users.find(u=>u.id===b.dataset.pw)));
+  $("#userRows").querySelectorAll("[data-rn]").forEach(b=>b.onclick=()=>nameForm(users.find(u=>u.id===b.dataset.rn)));
   $("#userRows").querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{const u=users.find(x=>x.id===b.dataset.act);
     if(u.active&&u.role==="owner"&&users.filter(x=>x.role==="owner"&&x.active).length<2)return toast("Harus ada minimal satu pemilik aktif");
     const os=openShift();if(u.active&&os&&os.userId===u.id)return toast(`Tutup dulu shift ${u.name}`);
     u.active=!u.active;saveUsers();renderUsers();toast(u.active?`${u.name} diaktifkan`:`${u.name} dinonaktifkan`)});
 }
 $("#addUser").onclick=()=>userForm(null);
+function nameForm(u){
+  modal(`<h3>Ubah nama ${u.role==="owner"?"pemilik":"kasir"}</h3>
+    <div class="field"><label for="rnName">Nama baru</label><input id="rnName" value="${esc(u.name)}" maxlength="40" autocomplete="off"></div>
+    <p class="hint">Transaksi dan struk yang sudah ada tetap memakai nama lama. Shift yang sedang berjalan dan catatan konsumsi ikut berganti nama.</p>
+    <p class="err" id="rnErr"></p>
+    <div class="row"><button class="btn ghost" data-close>Batal</button><button class="btn primary" id="rnSave">Simpan</button></div>`);
+  const inp=$("#rnName");inp.focus();inp.select();
+  inp.onkeydown=e=>{if(e.key==="Enter")$("#rnSave").click()};
+  $("#rnSave").onclick=()=>{const name=inp.value.trim().replace(/\s+/g," "),old=u.name,err=t=>$("#rnErr").textContent=t;
+    if(!name)return err("Nama wajib diisi");if(name===old)return closeModal();
+    if(users.some(x=>x.id!==u.id&&x.name.toLowerCase()===name.toLowerCase()))return err("Nama sudah dipakai");
+    u.name=name;saveUsers();
+    const os=openShift();if(os&&os.userId===u.id){os.name=name;saveShifts()}
+    let kc=0;kons.forEach(k=>{if(k.who===old){k.who=name;kc++}});if(kc)saveKons();
+    if(me&&me.id===u.id)me.name=name;closeModal();renderUsers();applyRole();toast(`Nama ${old} diganti menjadi ${name}`)};
+}
 function userForm(u){
   modal(`<h3>${u?"Ganti PIN "+esc(u.name):"Tambah kasir"}</h3>
     ${u?"":`<div class="field"><label for="uName">Nama</label><input id="uName" placeholder="mis. Rina" autocomplete="off"></div>
@@ -1587,7 +1604,7 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-17-30";
+const BUILD="2026-10-17-31";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
