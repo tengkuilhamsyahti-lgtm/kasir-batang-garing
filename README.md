@@ -25,6 +25,7 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - **Pertama kali dibuka:** buat akun pemilik (nama + PIN 6 angka). Aplikasi lalu menampilkan **kode pemulihan** satu kali. Catat kode itu; hanya kode itu yang bisa mengatur ulang PIN pemilik kalau lupa.
 - **Tambah kasir:** Atur → Pengguna & keamanan → **+ Tambah kasir**. Setiap kasir punya PIN 6 angka sendiri.
 - **Ubah nama akun:** Atur → Pengguna & keamanan → **Ubah nama** di baris pemilik atau kasir. Transaksi dan struk lama tetap memakai nama lama; shift yang sedang berjalan dan catatan konsumsi ikut berganti.
+- **Printer untuk semua akun:** pemilik dan kasir bisa menyambung, mengganti, menguji, dan memutus printer lewat tombol **Sambung printer / Printer siap** di layar Kasir. Pengaturan kertas dan cetak otomatis tetap di Atur (khusus pemilik).
 - **Mulai shift:** kasir memilih namanya, mengetik PIN 6 angka di tombol angka (langsung masuk begitu angka ke-6 diketik), lalu mengisi modal awal di laci. Pembayaran hanya bisa diterima saat ada shift terbuka. Nama kasir tercetak di struk.
 - **Tutup shift:** ketuk nama di pojok kiri bawah → **Tutup shift**. Kasir menghitung uang di laci tanpa melihat angka sistem, lalu aplikasi menampilkan selisih kas dan bisa mencetak rekap shift.
 - **Hak akses:** kasir hanya bisa membuka Kasir dan Laporan. Menu, Pengaturan, dan Riwayat shift hanya untuk pemilik.
