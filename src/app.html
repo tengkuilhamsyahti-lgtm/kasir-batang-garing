@@ -695,7 +695,11 @@ function escpos(lines,withLogo){
 const useLogo=()=>+(cfg.receiptLogo??1)===1;
 const printReceipt=tr=>printLines(receiptText(tr),useLogo());
 async function printLines(lines,withLogo){
-  if(printer){try{await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e){toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
+  if(!printer&&btDev)await btAttach(btDev,true).catch(()=>{});
+  if(printer){try{await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e){
+    // koneksi Bluetooth sering putus saat printer/tablet hemat daya: sambung ulang sekali lalu coba lagi
+    if(btDev)try{await btAttach(btDev,true);await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e2){}
+    toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
   $("#printArea").innerHTML=(withLogo?`<img src="${LOGO}" alt="">`:"")+esc(lines.join("\n"));
   try{window.print()}catch(e){}
   setTimeout(()=>{$("#printArea").innerHTML=""},1500);
@@ -708,18 +712,37 @@ async function connectUsb(){
     printer={name:dev.productName||"Printer USB",close:()=>dev.close(),write:d=>dev.transferOut(ep,d)};setPrinterUi();toast("Printer USB tersambung");
   }catch(e){if(e.name!=="NotFoundError")toast("Gagal menyambung USB: "+e.message)}
 }
+const BT_SV=["000018f0-0000-1000-8000-00805f9b34fb","e7810a71-73ae-499d-8c15-faa9aef0c3f2","0000ff00-0000-1000-8000-00805f9b34fb","49535343-fe7d-4ae5-8fa9-9fafd205e455"];
+let btDev=null,btRetry=0,btTimer=null;
+// sambung ke printer Bluetooth yang sudah pernah dipilih (tanpa jendela pilih perangkat)
+async function btAttach(dev,quiet){
+  const srv=dev.gatt.connected?dev.gatt:await dev.gatt.connect();let ch=null;
+  for(const s of await srv.getPrimaryServices()){for(const c of await s.getCharacteristics()){if(c.properties.write||c.properties.writeWithoutResponse){ch=c;break}}if(ch)break}
+  if(!ch)throw new Error("karakteristik tulis tidak ditemukan");
+  if(btDev!==dev){btDev=dev;dev.addEventListener("gattserverdisconnected",btLost)}
+  printer={name:dev.name||"Printer Bluetooth",bt:true,close:()=>{btDev=null;clearTimeout(btTimer);dev.gatt.disconnect()},write:async d=>{for(let i=0;i<d.length;i+=100){await ch.writeValue(d.slice(i,i+100))}}};
+  btRetry=0;clearTimeout(btTimer);try{localStorage.setItem("bgcafe.btId",dev.id)}catch(e){}
+  setPrinterUi();if(!quiet)toast("Printer Bluetooth tersambung");
+}
+function btLost(e){
+  if(e.target!==btDev)return;
+  if(printer&&printer.bt){printer=null;setPrinterUi()}
+  clearTimeout(btTimer);if(btRetry>=5){toast("Printer Bluetooth terputus. Nyalakan printer lalu ketuk tombol printer.");return}
+  btTimer=setTimeout(()=>{btRetry++;if(btDev&&!printer)btAttach(btDev,true).then(()=>toast("Printer tersambung lagi")).catch(()=>btLost({target:btDev}))},[2,5,10,20,30][btRetry]*1000);
+}
 async function connectBt(){
   if(!navigator.bluetooth)return toast("Browser ini belum mendukung Bluetooth. Pakai Chrome di Android atau PC.");
-  const SV=["000018f0-0000-1000-8000-00805f9b34fb","e7810a71-73ae-499d-8c15-faa9aef0c3f2","0000ff00-0000-1000-8000-00805f9b34fb","49535343-fe7d-4ae5-8fa9-9fafd205e455"];
-  try{const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:SV});
-    const srv=await dev.gatt.connect();let ch=null;
-    for(const s of await srv.getPrimaryServices()){for(const c of await s.getCharacteristics()){if(c.properties.write||c.properties.writeWithoutResponse){ch=c;break}}if(ch)break}
-    if(!ch)throw new Error("karakteristik tulis tidak ditemukan");
-    const pr={name:dev.name||"Printer Bluetooth",close:()=>dev.gatt.disconnect(),write:async d=>{for(let i=0;i<d.length;i+=100){await ch.writeValue(d.slice(i,i+100))}}};printer=pr;
-    dev.addEventListener("gattserverdisconnected",()=>{if(printer===pr){printer=null;setPrinterUi();toast("Printer Bluetooth terputus. Ketuk tombol printer untuk menyambung lagi.")}});
-    setPrinterUi();toast("Printer Bluetooth tersambung");
+  try{const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BT_SV});
+    if(btDev&&btDev!==dev){const old=btDev;btDev=null;try{old.gatt.disconnect()}catch(e){}}
+    await btAttach(dev);
   }catch(e){if(e.name!=="NotFoundError")toast("Gagal menyambung Bluetooth: "+e.message)}
 }
+// setelah aplikasi dibuka ulang: coba sambung lagi ke printer terakhir kalau Chrome mengizinkan
+async function btRestore(){
+  try{const id=localStorage.getItem("bgcafe.btId");if(!id||!navigator.bluetooth?.getDevices||printer)return;
+    const dev=(await navigator.bluetooth.getDevices()).find(d=>d.id===id);if(dev)await btAttach(dev)}catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!printer&&btDev){btRetry=0;btAttach(btDev,true).then(()=>toast("Printer tersambung lagi")).catch(()=>{})}});
 function setPrinterUi(){$("#qpDot").classList.toggle("on",!!printer);$("#qpText").textContent=printer?"Printer siap":"Sambung printer";$("#prDot").classList.toggle("on",!!printer);$("#prStatus").textContent=printer?`Tersambung: ${printer.name}`:"Belum ada printer tersambung. Struk akan dicetak lewat dialog cetak browser."}
 const testPrint=()=>printReceipt({no:"TES-001",time:new Date().toISOString(),items:[{name:"Tes printer",qty:1,price:1000}],sub:1000,tax:0,total:1000,method:"Tunai",paid:1000,change:0});
 // menu printer untuk semua akun (pemilik dan kasir), dari tombol printer di layar kasir
@@ -730,10 +753,11 @@ function printerModal(){
     <div class="row"><button class="btn ghost" data-close>Tutup</button></div>`);
   const done=()=>{if(printer)closeModal()};
   $("#pmBt").onclick=()=>connectBt().then(done);$("#pmUsb").onclick=()=>connectUsb().then(done);$("#pmTest").onclick=testPrint;
-  if($("#pmOff"))$("#pmOff").onclick=()=>{try{printer.close&&printer.close()}catch(e){}printer=null;setPrinterUi();closeModal();toast("Printer diputuskan")};
+  if($("#pmOff"))$("#pmOff").onclick=()=>{try{printer.close&&printer.close()}catch(e){}printer=null;try{localStorage.removeItem("bgcafe.btId")}catch(e){}setPrinterUi();closeModal();toast("Printer diputuskan")};
 }
 $("#connUsb").onclick=connectUsb;$("#quickPrinter").onclick=printerModal;$("#connBt").onclick=connectBt;
 $("#testPrint").onclick=testPrint;
+setTimeout(btRestore,800);
 
 // ---------- Google Spreadsheet ----------
 let syncing=false;
@@ -1616,7 +1640,7 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-18-32";
+const BUILD="2026-10-18-33";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
