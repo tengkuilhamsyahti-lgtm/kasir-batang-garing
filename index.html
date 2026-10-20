@@ -589,7 +589,9 @@ function renderPos(){
 $("#q").oninput=e=>{q=e.target.value;renderPos()};
 function add(id){const m=menu.find(x=>x.id===id);const l=cart.find(x=>x.id===id);if(l)l.qty++;else cart.push({id,name:m.name,price:m.price,qty:1,div:mDiv(m)});renderPos()}
 function totals(){const sub=cart.reduce((a,l)=>a+l.price*l.qty,0);const tax=Math.round(sub*(+cfg.tax||0)/100);return{sub,tax,total:sub+tax}}
-function nextNo(){const d=new Date();const ds=d.toISOString().slice(2,10).replace(/-/g,"");const n=trx.filter(t=>t.no.startsWith(ds)).length+1;return ds+"-"+String(n).padStart(3,"0")}
+// No struk pakai tanggal lokal (bukan UTC, supaya struk lewat tengah malam tidak tercatat hari kemarin) dan nomor terbesar + 1 (bukan jumlah, supaya tidak dobel)
+function nextNo(){const d=new Date();const ds=String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+  const n=trx.reduce((a,t)=>{const m=String(t.no).match(/^(\d{6})-(\d+)$/);return m&&m[1]===ds?Math.max(a,+m[2]):a},0)+1;return ds+"-"+String(n).padStart(3,"0")}
 function renderCart(){
   $("#orderNo").textContent="#"+nextNo();
   $("#lines").innerHTML=cart.length?cart.map(l=>`<div class="line"><div><div class="n">${esc(l.name)}</div><div class="s">${rp(l.price)}</div></div>
@@ -955,6 +957,8 @@ const checkPw=async(u,pw)=>(await hashPw(pw,u.salt))===u.hash;
 const isPin=v=>/^\d{6}$/.test(v),PIN_ERR="PIN harus tepat 6 angka";
 const pinField=(id,label)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="••••••"></div>`;
 const onlyDigits=()=>document.querySelectorAll(".pin-in").forEach(i=>i.addEventListener("input",()=>{if(!i.dataset.free)i.value=i.value.replace(/\D/g,"").slice(0,6)}));
+// Salah PIN/kode 5x: kunci 1 menit, lalu 2, 4, 8 ... maks. 30 menit (menyulitkan tebak PIN beruntun)
+function failed(f){f.n++;if(f.n>=5){f.lv=(f.lv||0)+1;f.n=0;f.until=Date.now()+Math.min(30,2**(f.lv-1))*60000}store.set("fails",f)}
 const recoveryCode=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(8));return [...r].map(x=>a[x%a.length]).join("").replace(/(.{4})/,"$1-")};
 
 function lockShell(inner,split){$("#lock").innerHTML=`<div class="lock-card${split?" split":""}" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" role="img" aria-label="Logo Batang Garing Coffee" style="margin:0;width:64px;height:64px"></div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
@@ -975,10 +979,10 @@ function lockScreen(){
     document.querySelectorAll("#keypad button").forEach(b=>b.disabled=off);$("#keypad").classList.toggle("off",off);if(off)$("#lPw").value=""};
   document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lErr").textContent="";pinLock();$("#lPw").focus()});
   const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
-    if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
+    if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${(w=>w>90?Math.ceil(w/60)+" menit":w+" detik")(Math.ceil((f.until-Date.now())/1000))}.`);
     if(!pick)return err("Pilih nama Anda dulu");
     if(!$("#lPw").value)return err("Masukkan PIN");
-    if(!(await checkPw(pick,$("#lPw").value))){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);$("#lPw").value="";return err("PIN salah")}
+    if(!(await checkPw(pick,$("#lPw").value))){failed(f);$("#lPw").value="";return err("PIN salah")}
     store.set("fails",{n:0,until:0});
     const s=openShift();
     if(s&&s.userId!==pick.id&&pick.role!=="owner")return err(`Shift ${s.name} masih berjalan. Minta ${s.name} atau pemilik menutupnya dulu.`);
@@ -1016,9 +1020,9 @@ function forgotScreen(){
   onlyDigits();$("#fBack").onclick=lockScreen;
   $("#fGo").onclick=async()=>{const err=t=>$("#fErr").textContent=t,rec=store.get("recovery",null),f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err("Terlalu banyak percobaan salah. Tunggu sebentar.");
-    if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);return err("Kode pemulihan salah")}
+    if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){failed(f);return err("Kode pemulihan salah")}
     if(!isPin($("#fPw").value))return err(PIN_ERR);
-    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);o.pin=true;saveUsers();
+    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);o.pin=true;saveUsers();store.set("fails",{n:0,until:0});
     toast(`PIN ${o.name} sudah diganti`);lockScreen()};
 }
 // Akun lama (password sebelum aturan PIN): wajib ganti ke PIN 6 angka setelah masuk.
@@ -1652,7 +1656,7 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-18-33";
+const BUILD="2026-10-20-34";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";

@@ -6,6 +6,15 @@
  */
 const KUNCI = 'ganti-kunci-ini';
 
+/** Teks yang diawali = + - @ ditulis apa adanya, bukan dijalankan sebagai rumus spreadsheet. */
+function aman_(rows) {
+  return rows.map(r => r.map(v => typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v));
+}
+/** Teks dari kasir ditampilkan apa adanya di dashboard, bukan sebagai kode HTML. */
+function esc_(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
 function sheet_(name, header) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(name);
@@ -38,14 +47,14 @@ function doPost(e) {
       rowsT.push([d, tgl, t.no, data.store, t.method, t.sub, t.tax, t.total, t.paid, t.change, t.items.reduce((a, i) => a + i.qty, 0), t.cashier || '', t.hpp || 0, t.sub - (t.hpp || 0), t.table === 'TA' ? 'Bawa pulang' : (t.table || ''), t.customer || '']);
       t.items.forEach(i => rowsD.push([tgl, t.no, i.name, i.qty, i.price, i.qty * i.price, i.hpp || 0, (i.hpp || 0) * i.qty, i.div || 'Kafe']));
     });
-    if (rowsT.length) trx.getRange(trx.getLastRow() + 1, 1, rowsT.length, rowsT[0].length).setValues(rowsT);
-    if (rowsD.length) det.getRange(det.getLastRow() + 1, 1, rowsD.length, rowsD[0].length).setValues(rowsD);
+    if (rowsT.length) trx.getRange(trx.getLastRow() + 1, 1, rowsT.length, rowsT[0].length).setValues(aman_(rowsT));
+    if (rowsD.length) det.getRange(det.getLastRow() + 1, 1, rowsD.length, rowsD[0].length).setValues(aman_(rowsD));
     const shifts = data.shifts || [];
     if (shifts.length) {
       const sh = sheet_('Shift', ['ID', 'Kasir', 'Buka', 'Tutup', 'Transaksi', 'Modal awal', 'Penjualan tunai', 'Non-tunai', 'Seharusnya di laci', 'Uang dihitung', 'Selisih', 'Ditutup oleh', 'Pengeluaran', 'Pengeluaran dari laci', 'Penjualan tanpa pajak', 'HPP', 'Laba kotor', 'Refund', 'Refund tunai']);
       const adaS = new Set(sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().flat().map(String) : []);
       const rowsS = shifts.filter(x => !adaS.has(String(x.id))).map(x => [x.id, x.name, new Date(x.start), new Date(x.end), x.trxCount, x.openCash, x.cashSales, x.nonCash, x.expected, x.counted, x.diff, x.closedBy, x.expTotal || 0, x.expCash || 0, x.netSales || 0, x.hpp || 0, (x.netSales || 0) - (x.hpp || 0), x.refund ? x.refund.total : 0, x.refund ? x.refund.cash : 0]);
-      if (rowsS.length) sh.getRange(sh.getLastRow() + 1, 1, rowsS.length, rowsS[0].length).setValues(rowsS);
+      if (rowsS.length) sh.getRange(sh.getLastRow() + 1, 1, rowsS.length, rowsS[0].length).setValues(aman_(rowsS));
     }
     const exps = data.expenses || [];
     if (exps.length) {
@@ -55,7 +64,7 @@ function doPost(e) {
         const d = new Date(x.time);
         return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.cashier, x.cat, x.note || '', x.src === 'Laci' ? 'Laci kasir' : 'Uang lain', x.amount, x.shift];
       });
-      if (rowsE.length) se.getRange(se.getLastRow() + 1, 1, rowsE.length, rowsE[0].length).setValues(rowsE);
+      if (rowsE.length) se.getRange(se.getLastRow() + 1, 1, rowsE.length, rowsE[0].length).setValues(aman_(rowsE));
     }
     const mv = data.moves || [];
     if (mv.length) {
@@ -65,7 +74,7 @@ function doPost(e) {
         const d = new Date(x.time);
         return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.name, x.type, x.qty, x.unit, x.cost || 0, Math.round(x.qty * (x.cost || 0)), x.note || '', x.by || ''];
       });
-      if (rowsM.length) sm.getRange(sm.getLastRow() + 1, 1, rowsM.length, rowsM[0].length).setValues(rowsM);
+      if (rowsM.length) sm.getRange(sm.getLastRow() + 1, 1, rowsM.length, rowsM[0].length).setValues(aman_(rowsM));
     }
     const ks = data.konsumsi || [];
     if (ks.length) {
@@ -75,7 +84,7 @@ function doPost(e) {
         const d = new Date(x.time);
         return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.who, x.items.map(i => i.qty + 'x ' + i.name).join(', '), x.items.reduce((a, i) => a + i.qty, 0), x.value, x.hpp || 0, x.note || '', x.by || ''];
       });
-      if (rowsK.length) sk.getRange(sk.getLastRow() + 1, 1, rowsK.length, rowsK[0].length).setValues(rowsK);
+      if (rowsK.length) sk.getRange(sk.getLastRow() + 1, 1, rowsK.length, rowsK[0].length).setValues(aman_(rowsK));
     }
     const rf = data.refunds || [];
     if (rf.length) {
@@ -85,14 +94,14 @@ function doPost(e) {
         const d = new Date(x.time);
         return [x.id, d, Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'), x.no, x.trxNo, x.items.map(i => i.qty + 'x ' + i.name).join(', '), x.items.reduce((a, i) => a + i.qty, 0), x.sub, x.tax || 0, x.amount, x.method, x.reason, x.note || '', x.cashier, x.approvedBy, x.restock ? 'Ya' : 'Tidak', x.hppBack || 0];
       });
-      if (rowsR.length) sr.getRange(sr.getLastRow() + 1, 1, rowsR.length, rowsR[0].length).setValues(rowsR);
+      if (rowsR.length) sr.getRange(sr.getLastRow() + 1, 1, rowsR.length, rowsR[0].length).setValues(aman_(rowsR));
     }
     if (data.stock && data.stock.length) {
       const ss = sheet_('Sisa Stok', ['Bahan', 'Sisa', 'Satuan', 'Batas menipis', 'Harga per satuan', 'Nilai stok', 'Status', 'Diperbarui', 'Bagian']);
       if (ss.getLastRow() > 1) ss.getRange(2, 1, ss.getLastRow() - 1, 9).clearContent();
       const now = new Date();
       const rows = data.stock.map(b => [b.name, b.stock, b.unit, b.min || 0, b.cost, Math.round(Math.max(0, b.stock) * b.cost), b.stock <= 0 ? 'Habis' : b.stock <= (b.min || 0) ? 'Menipis' : 'Aman', now, b.div || 'Kafe']);
-      ss.getRange(2, 1, rows.length, 9).setValues(rows);
+      ss.getRange(2, 1, rows.length, 9).setValues(aman_(rows));
     }
     rekap_();
   } finally {
@@ -154,7 +163,7 @@ h1{font-size:20px;margin:0 0 2px}.s{color:#5d6b62;font-size:13px;margin-bottom:1
 .l{font-size:12px;color:#5d6b62}.v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 table{width:100%;border-collapse:collapse;font-size:14px}td{padding:8px 4px;border-bottom:1px solid #e6ebe7}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 h2{font-size:15px;margin:0 0 8px}</style>
-<h1>${data_(e)}</h1><div class="s">${Utilities.formatDate(new Date(), tz, 'dd MMM yyyy HH:mm')} · diperbarui tiap menit</div>
+<h1>${esc_(data_(e))}</h1><div class="s">${Utilities.formatDate(new Date(), tz, 'dd MMM yyyy HH:mm')} · diperbarui tiap menit</div>
 <div class="k"><div class="c"><div class="l">Omzet bersih hari ini</div><div class="v">${rp(omzet)}</div></div>
 <div class="c"><div class="l">Transaksi</div><div class="v">${hari.length}</div></div>
 <div class="c"><div class="l">Penjualan Kafe</div><div class="v">${rp(bagian['Kafe'])}</div></div>
@@ -168,12 +177,12 @@ h2{font-size:15px;margin:0 0 8px}</style>
 <div class="c"><div class="l">Konsumsi staf (nilai jual)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[6]), 0))}</div></div>
 <div class="c"><div class="l">Konsumsi staf (HPP)</div><div class="v">${rp(konsHari.reduce((a, r) => a + Number(r[7]), 0))}</div></div></div>
 <div class="c" style="margin-bottom:12px"><h2>Pendapatan 7 hari terakhir</h2><table>${hari7_(rows, shR, tz).map(d => `<tr><td>${d.label} · ${d.n} transaksi${d.refund ? ' · refund ' + rp(d.refund) : ''}</td><td><b>${rp(d.net)}</b></td></tr>`).join('')}</table></div>
-<div class="c" style="margin-bottom:12px"><h2>Stok menipis</h2><table>${menipis.map(r => `<tr><td>${r[0]} · ${r[6]}</td><td style="color:#c8501e">${Number(r[1]).toLocaleString('id-ID')} ${r[2]}</td></tr>`).join('') || '<tr><td>Semua stok aman</td><td></td></tr>'}</table></div>
-<div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${n}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
-<div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${r[1]} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
-${refHari.length ? `<div class="c" style="margin-bottom:12px"><h2>Refund hari ini</h2><table>${refHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${r[4]} · ${r[5]}<br><small style="color:#5d6b62">${r[11]}${r[12] ? ' · ' + r[12] : ''} · ${r[13]}, disetujui ${r[14]}</small></td><td style="color:#c8501e">-${rp(r[9])}</td></tr>`).join('')}</table></div>` : ''}
-<div class="c" style="margin-bottom:12px"><h2>Pengeluaran hari ini</h2><table>${expHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${r[4]}${r[5] ? ' · ' + r[5] : ''} · ${r[3]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
-<div class="c"><h2>Transaksi terakhir</h2><table>${last.map(r => `<tr><td>${Utilities.formatDate(new Date(r[0]), tz, 'HH:mm')} · ${r[2]} · ${r[4]}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>`;
+<div class="c" style="margin-bottom:12px"><h2>Stok menipis</h2><table>${menipis.map(r => `<tr><td>${esc_(r[0])} · ${esc_(r[6])}</td><td style="color:#c8501e">${Number(r[1]).toLocaleString('id-ID')} ${esc_(r[2])}</td></tr>`).join('') || '<tr><td>Semua stok aman</td><td></td></tr>'}</table></div>
+<div class="c" style="margin-bottom:12px"><h2>Menu terlaris</h2><table>${top.map(([n, q]) => `<tr><td>${esc_(n)}</td><td>${q}×</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
+<div class="c" style="margin-bottom:12px"><h2>Shift terakhir</h2><table>${shifts.map(r => `<tr><td>${esc_(r[1])} · ${Utilities.formatDate(new Date(r[3]), tz, 'dd MMM HH:mm')}</td><td style="color:${Number(r[10]) === 0 ? '#1f7a3f' : '#c8501e'}">${Number(r[10]) > 0 ? '+' : ''}${rp(r[10])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
+${refHari.length ? `<div class="c" style="margin-bottom:12px"><h2>Refund hari ini</h2><table>${refHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${esc_(r[4])} · ${esc_(r[5])}<br><small style="color:#5d6b62">${esc_(r[11])}${r[12] ? ' · ' + esc_(r[12]) : ''} · ${esc_(r[13])}, disetujui ${esc_(r[14])}</small></td><td style="color:#c8501e">-${rp(r[9])}</td></tr>`).join('')}</table></div>` : ''}
+<div class="c" style="margin-bottom:12px"><h2>Pengeluaran hari ini</h2><table>${expHari.slice().reverse().map(r => `<tr><td>${Utilities.formatDate(new Date(r[1]), tz, 'HH:mm')} · ${esc_(r[4])}${r[5] ? ' · ' + esc_(r[5]) : ''} · ${esc_(r[3])}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>
+<div class="c"><h2>Transaksi terakhir</h2><table>${last.map(r => `<tr><td>${Utilities.formatDate(new Date(r[0]), tz, 'HH:mm')} · ${esc_(r[2])} · ${esc_(r[4])}</td><td>${rp(r[7])}</td></tr>`).join('') || '<tr><td>Belum ada</td><td></td></tr>'}</table></div>`;
   return HtmlService.createHtmlOutput(html).setTitle('Pantau Kasir').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 /** Pendapatan bersih (penjualan - refund) per hari, 7 hari terakhir, terbaru di atas. */
