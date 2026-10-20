@@ -134,7 +134,21 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 4. **Deploy → New deployment → Web app**. Execute as: *Me*. Who has access: *Anyone*. Izinkan akses saat diminta.
 5. Salin URL yang berakhiran `/exec`.
 6. Di aplikasi kasir: tab **Atur**, tempel URL dan kunci yang sama, **Simpan**.
-7. Tombol **Buka dashboard pemilik** memberi link untuk HP pemilik.
+7. Ketuk **Tes koneksi**. Kalau muncul "Tersambung. Kunci rahasia cocok", sambungan sudah benar.
+8. Tombol **Buka dashboard pemilik** memberi link untuk HP pemilik.
+
+Aplikasi sekarang membaca balasan Apps Script: data baru ditandai terkirim kalau Apps Script menjawab "ok". Kalau kunci tidak cocok, data tetap disimpan di tablet dan muncul peringatan merah di **Atur**.
+
+## Rekap otomatis ke Google Drive
+
+1. Buka Apps Script dalam keadaan masuk ke akun Google pemilik (mis. batanggaringcoffe@gmail.com) dan pastikan isi `Code.gs` sudah versi terbaru.
+2. Di atas editor, pilih fungsi **pasangRekapOtomatis**, klik **Run**, lalu izinkan akses Google Drive.
+3. Folder **Rekap Aplikasi Kasir** muncul di Google Drive dengan subfolder per bulan. Setiap pagi (pukul 06–07) rekap hari kemarin disimpan sebagai spreadsheet + PDF: ringkasan omzet per metode bayar, refund, pengeluaran, HPP, laba, menu terjual, transaksi, shift.
+4. Setelah mengganti `Code.gs`, jangan lupa **Deploy → Manage deployments → Edit → New version** supaya Web App ikut diperbarui.
+
+## Dua perangkat kasir
+
+Nomor struk berisi kode perangkat, mis. `261021-A-007` (tanggal-kode-urutan). Setiap perangkat mendapat kode acak otomatis; ganti di **Atur → Toko → Kode perangkat ini** (mis. tablet utama `A`, HP `B`). Kode ini tidak ikut sinkron, jadi dua perangkat tidak pernah membuat nomor struk yang sama.
 
 ## Menjalankan
 

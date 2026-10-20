@@ -3,6 +3,8 @@
  * Pasang: Extensions > Apps Script di spreadsheet, tempel file ini,
  * ganti KUNCI, lalu Deploy > New deployment > Web app
  * (Execute as: Me, Who has access: Anyone). Salin URL /exec ke aplikasi kasir.
+ * Rekap otomatis ke Google Drive: pilih fungsi pasangRekapOtomatis lalu klik Run sekali
+ * (izinkan akses Drive). Setiap pagi rekap hari sebelumnya disimpan di folder "Rekap Aplikasi Kasir".
  */
 const KUNCI = 'ganti-kunci-ini';
 
@@ -33,6 +35,8 @@ function sheet_(name, header) {
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   if (data.key !== KUNCI) return ContentService.createTextOutput('kunci salah');
+  // tombol "Tes koneksi" di aplikasi: cukup cek kunci, tidak menulis apa pun
+  if (data.ping) return ContentService.createTextOutput(KUNCI === 'ganti-kunci-ini' ? 'ok kunci-bawaan' : 'ok');
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -200,3 +204,75 @@ function hari7_(rows, shR, tz) {
   return out;
 }
 function data_() { return SpreadsheetApp.getActiveSpreadsheet().getName(); }
+
+// ---------- Rekap otomatis ke Google Drive ----------
+const FOLDER_REKAP = 'Rekap Aplikasi Kasir';
+
+/** Jalankan SEKALI dari editor (pilih fungsi ini, klik Run). Membuat folder, jadwal harian, dan rekap hari ini. */
+function pasangRekapOtomatis() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'rekapHarian').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('rekapHarian').timeBased().everyDays(1).atHour(6).create();
+  const f = buatRekap_(new Date());
+  Logger.log('Siap. Rekap tersimpan di Google Drive: ' + f.getUrl());
+}
+
+/** Dijalankan otomatis tiap pagi (pukul 06-07): rekap hari kemarin, termasuk penjualan lewat tengah malam. */
+function rekapHarian() {
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  buatRekap_(d);
+}
+
+function folder_(induk, nama) {
+  const it = induk ? induk.getFoldersByName(nama) : DriveApp.getFoldersByName(nama);
+  return it.hasNext() ? it.next() : (induk ? induk.createFolder(nama) : DriveApp.createFolder(nama));
+}
+
+/** Membuat spreadsheet + PDF rekap satu hari di folder Rekap Aplikasi Kasir/<bulan>. Kalau sudah ada, diganti. */
+function buatRekap_(tanggal) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet(), tz = Session.getScriptTimeZone();
+  const tgl = Utilities.formatDate(tanggal, tz, 'yyyy-MM-dd');
+  const kunci = v => v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v);
+  const ambil = (nama, kolomTgl) => {
+    const sh = ss.getSheetByName(nama);
+    if (!sh || sh.getLastRow() < 2) return { head: sh ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] : [], rows: [] };
+    const v = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+    return { head: v[0], rows: v.slice(1).filter(r => kunci(r[kolomTgl]) === tgl) };
+  };
+  const trx = ambil('Transaksi', 1), det = ambil('Detail Item', 0), exp = ambil('Pengeluaran', 2), ref = ambil('Refund', 2), kons = ambil('Konsumsi', 2);
+  const shf = (() => { const sh = ss.getSheetByName('Shift'); if (!sh || sh.getLastRow() < 2) return { head: [], rows: [] };
+    const v = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+    return { head: v[0], rows: v.slice(1).filter(r => kunci(r[3]) === tgl) }; })(); // shift yang ditutup hari itu
+  const jml = (rows, i) => rows.reduce((a, r) => a + (Number(r[i]) || 0), 0);
+  const perMetode = m => trx.rows.filter(r => r[4] === m).reduce((a, r) => a + (Number(r[7]) || 0), 0);
+  const omzet = jml(trx.rows, 7), refund = jml(ref.rows, 9), keluar = jml(exp.rows, 7), hpp = jml(trx.rows, 12);
+  const laba = jml(trx.rows, 5) - hpp - ref.rows.reduce((a, r) => a + (Number(r[7]) || 0) - (Number(r[16]) || 0), 0);
+  const menu = {};
+  det.rows.forEach(r => { const m = menu[r[2]] = menu[r[2]] || [r[2], r[8] || 'Kafe', 0, 0]; m[2] += Number(r[3]) || 0; m[3] += Number(r[5]) || 0; });
+
+  const bulan = folder_(folder_(null, FOLDER_REKAP), tgl.slice(0, 7));
+  const nama = 'Rekap Kasir ' + tgl;
+  [nama, nama + '.pdf'].forEach(n => { const it = bulan.getFilesByName(n); while (it.hasNext()) it.next().setTrashed(true); });
+  const out = SpreadsheetApp.create(nama);
+  const tulis = (sh, head, rows) => {
+    if (head.length) sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+    if (rows.length) sh.getRange(2, 1, rows.length, rows[0].length).setValues(aman_(rows));
+    sh.setFrozenRows(1); sh.autoResizeColumns(1, Math.max(1, head.length));
+  };
+  const r1 = out.getSheets()[0].setName('Ringkasan');
+  tulis(r1, ['Rekap ' + ss.getName(), tgl], [
+    ['Jumlah transaksi', trx.rows.length], ['Penjualan (termasuk pajak)', omzet], ['Tunai', perMetode('Tunai')], ['QRIS', perMetode('QRIS')], ['Transfer', perMetode('Transfer')],
+    ['Refund', refund], ['Omzet bersih', omzet - refund], ['Pengeluaran', keluar], ['Bersih setelah pengeluaran', omzet - refund - keluar],
+    ['HPP', hpp], ['Laba kotor', laba], ['Konsumsi staf (nilai jual)', jml(kons.rows, 6)], ['Shift ditutup', shf.rows.length], ['Selisih kas shift', jml(shf.rows, 10)],
+    ['Dibuat', Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm')]]);
+  r1.getRange('B2:B15').setNumberFormat('#,##0');
+  tulis(out.insertSheet('Menu terjual'), ['Menu', 'Bagian', 'Terjual', 'Omzet'], Object.values(menu).sort((a, b) => b[3] - a[3]));
+  tulis(out.insertSheet('Transaksi'), trx.head, trx.rows);
+  tulis(out.insertSheet('Shift'), shf.head, shf.rows);
+  tulis(out.insertSheet('Pengeluaran'), exp.head, exp.rows);
+  tulis(out.insertSheet('Refund'), ref.head, ref.rows);
+  SpreadsheetApp.flush();
+  const file = DriveApp.getFileById(out.getId());
+  file.moveTo(bulan);
+  bulan.createFile(file.getAs('application/pdf')).setName(nama + '.pdf');
+  return file;
+}
