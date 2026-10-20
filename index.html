@@ -195,6 +195,7 @@ td.r,th.r{text-align:right}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:11px 18px;border-radius:12px;font-weight:600;font-size:14px;z-index:40;max-width:calc(100% - 32px)}
 .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line);margin-right:6px}
 .status-dot.on{background:var(--ok)}
+.status-dot.bad{background:var(--chili)}
 .mobile-cart{display:none}
 /* HP & tablet kecil */
 @media (max-width:860px){
@@ -432,6 +433,7 @@ td.r,th.r{text-align:right}
           <div class="field"><label for="sTax">Pajak / PB1 (%)</label><input id="sTax" type="number" min="0" max="20" step="0.5"></div>
           <div class="field"><label for="sFooter">Pesan bawah struk</label><input id="sFooter"></div>
           <div class="field"><label for="sTables">Jumlah meja</label><input id="sTables" type="number" min="0" max="60" inputmode="numeric"></div>
+          <div class="field"><label for="sDev">Kode perangkat ini (di nomor struk)</label><input id="sDev" maxlength="2" autocomplete="off" style="text-transform:uppercase"><span class="hint">Tiap tablet/HP kasir harus beda, mis. A dan B</span></div>
           <div class="field"><label for="sUi">Ukuran tampilan</label><select id="sUi"><option value="auto">Otomatis (menyesuaikan layar)</option><option value="0.9">Kecil</option><option value="1">Normal</option><option value="1.15">Agak besar</option><option value="1.3">Besar</option><option value="1.45">Sangat besar</option></select></div>
         </div>
       </div>
@@ -452,7 +454,8 @@ td.r,th.r{text-align:right}
         <p class="hint">Tempel URL Web App dari Google Apps Script (panduan ada di README). Setiap transaksi otomatis masuk ke spreadsheet, dan pemilik bisa membuka dashboard dari HP di mana saja.</p>
         <div class="field"><label for="sSheet">URL Web App</label><input id="sSheet" placeholder="https://script.google.com/macros/s/…/exec"></div>
         <div class="field"><label for="sKey">Kunci rahasia (harus sama dengan di Apps Script)</label><input id="sKey" placeholder="mis. warung-2026"></div>
-        <div class="row"><button class="btn primary" id="saveSettings">Simpan pengaturan</button><button class="btn ghost" id="openDash">Buka dashboard pemilik</button></div>
+        <div class="row"><button class="btn primary" id="saveSettings">Simpan pengaturan</button><button class="btn ghost" id="testSheet">Tes koneksi</button><button class="btn ghost" id="openDash">Buka dashboard pemilik</button></div>
+        <p class="hint" id="shStatus"></p>
       </div>
       <div class="panel" style="display:grid;gap:12px" id="cloudPanel">
         <h3 style="margin:0;font-size:16px"><span class="status-dot" id="clDot"></span>Simpan data di cloud (Supabase)</h3>
@@ -589,7 +592,12 @@ function renderPos(){
 $("#q").oninput=e=>{q=e.target.value;renderPos()};
 function add(id){const m=menu.find(x=>x.id===id);const l=cart.find(x=>x.id===id);if(l)l.qty++;else cart.push({id,name:m.name,price:m.price,qty:1,div:mDiv(m)});renderPos()}
 function totals(){const sub=cart.reduce((a,l)=>a+l.price*l.qty,0);const tax=Math.round(sub*(+cfg.tax||0)/100);return{sub,tax,total:sub+tax}}
-function nextNo(){const d=new Date();const ds=d.toISOString().slice(2,10).replace(/-/g,"");const n=trx.filter(t=>t.no.startsWith(ds)).length+1;return ds+"-"+String(n).padStart(3,"0")}
+// No struk: tanggal lokal (bukan UTC) + kode perangkat + nomor terbesar + 1, mis. 261021-A-007.
+// Kode perangkat disimpan hanya di perangkat ini (tidak ikut sinkron), jadi dua perangkat tidak pernah membuat nomor yang sama.
+const DEV_ABC="ABCDEFGHJKLMNPQRSTUVWXYZ";
+function devCode(){let c=store.get("devcode","");if(!/^[A-Z0-9]{1,2}$/.test(c)){const r=crypto.getRandomValues(new Uint8Array(2));c=[...r].map(x=>DEV_ABC[x%24]).join("");store.set("devcode",c)}return c}
+function nextNo(){const d=new Date();const ds=String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0"),pre=ds+"-"+devCode()+"-";
+  const n=trx.reduce((a,t)=>{const no=String(t.no);return no.startsWith(pre)&&/^\d+$/.test(no.slice(pre.length))?Math.max(a,+no.slice(pre.length)):a},0)+1;return pre+String(n).padStart(3,"0")}
 function renderCart(){
   $("#orderNo").textContent="#"+nextNo();
   $("#lines").innerHTML=cart.length?cart.map(l=>`<div class="line"><div><div class="n">${esc(l.name)}</div><div class="s">${rp(l.price)}</div></div>
@@ -772,6 +780,10 @@ $("#testPrint").onclick=testPrint;
 setTimeout(btRestore,800);
 
 // ---------- Google Spreadsheet ----------
+// Kirim ke Apps Script dan baca balasannya ("ok" atau "kunci salah"), supaya data hanya ditandai terkirim kalau benar-benar masuk
+async function sheetPost(url,body){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});return (await r.text()).trim()}
+const sheetMsg=t=>t==="kunci salah"?"Kunci rahasia tidak sama dengan KUNCI di Apps Script. Data belum terkirim.":"Balasan Apps Script tidak dikenal. Pastikan URL Web App benar (berakhiran /exec).";
+function shUi(t){const el=$("#shStatus");if(el)el.textContent=t;$("#shDot")?.classList.toggle("bad",!!t)}
 let syncing=false;
 async function syncPending(manual){if(syncing)return;syncing=true;try{await syncOnce(manual)}finally{syncing=false}}
 async function syncOnce(manual){
@@ -783,9 +795,10 @@ async function syncOnce(manual){
   if(!cfg.sheet){if(manual)toast("Isi dulu URL Web App di Pengaturan");return}
   if(!pend.length&&!pendS.length&&!pendE.length&&!pendM.length&&!pendK.length&&!pendR.length){if(manual)toast("Semua transaksi sudah terkirim");return}
   try{
-    await fetch(cfg.sheet,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,refunds:pendR,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost,div:bDiv(b)}))})});
-    pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();pendR.forEach(x=>x.synced=true);saveRefunds();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
-  }catch(e){if(manual)toast("Gagal mengirim. Cek internet, nanti dicoba lagi otomatis.")}
+    const res=await sheetPost(cfg.sheet,{key:cfg.key,store:cfg.name,transactions:pend,shifts:pendS,expenses:pendE,moves:pendM,konsumsi:pendK,refunds:pendR,stock:bahan.map(b=>({id:b.id,name:b.name,unit:b.unit,stock:b.stock,min:b.min,cost:b.cost,div:bDiv(b)}))});
+    if(!/^ok\b/.test(res))throw new Error(sheetMsg(res));
+    shUi("");pend.forEach(t=>t.synced=true);saveTrx();pendS.forEach(x=>x.synced=true);saveShifts();pendE.forEach(x=>x.synced=true);saveExps();pendM.forEach(x=>x.synced=true);saveMoves();pendK.forEach(x=>x.synced=true);saveKons();pendR.forEach(x=>x.synced=true);saveRefunds();if(manual)toast(`${pend.length} transaksi terkirim ke spreadsheet`);
+  }catch(e){const m=e instanceof TypeError?"Gagal mengirim (internet atau URL Web App bermasalah). Data tetap disimpan dan dicoba lagi otomatis.":e.message;shUi(m);if(manual)toast(m)}
   if(!$("#v-report").hidden)renderReport();
   updateNet();
 }
@@ -884,8 +897,16 @@ function renderReport(){
 }
 
 // ---------- pengaturan ----------
-function fillSettings(){renderUsers();fillCloud();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
+function fillSettings(){renderUsers();fillCloud();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sDev").value=devCode();$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
 $("#saveSettings").onclick=()=>{cfg={...cfg,name:$("#sName").value.trim()||"Batang Garing Coffee",addr:$("#sAddr").value.trim(),tax:+$("#sTax").value||0,footer:$("#sFooter").value,paper:+$("#sPaper").value,autoPrint:+$("#sAutoPrint").value,autoShift:+$("#sAutoShift").value,receiptLogo:+$("#sLogo").value,sheet:$("#sSheet").value.trim(),key:$("#sKey").value.trim()};saveCfg();fillSettings();toast("Pengaturan disimpan");syncPending(false)};
+$("#sDev").onchange=()=>{const v=$("#sDev").value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,2);if(v){store.set("devcode",v);toast("Kode perangkat: "+v)}$("#sDev").value=devCode();renderPos()};
+$("#testSheet").onclick=async()=>{const url=$("#sSheet").value.trim(),key=$("#sKey").value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url))return shUi("URL Web App harus seperti https://script.google.com/macros/s/…/exec");
+  shUi("Mengetes…");$("#shDot").classList.remove("bad");
+  try{const t=await sheetPost(url,{key,ping:true});
+    if(/^ok\b/.test(t)){if(/kunci-bawaan/.test(t)||key==="ganti-kunci-ini")shUi("Tersambung, tapi kunci masih bawaan (ganti-kunci-ini). Ganti KUNCI di Apps Script dan isi yang sama di sini supaya orang lain tidak bisa mengirim data palsu.");
+      else{shUi("");$("#shStatus").textContent="Tersambung. Kunci rahasia cocok dengan Apps Script."}toast("Tes koneksi selesai")}
+    else shUi(sheetMsg(t))}
+  catch(e){shUi("Tidak bisa menghubungi Apps Script. Cek internet, URL, dan pastikan Web App diatur Who has access: Anyone.")}};
 $("#openDash").onclick=()=>{if(!cfg.sheet)return toast("Isi dulu URL Web App");const u=cfg.sheet+"?key="+encodeURIComponent(cfg.key);
   modal(`<h3>Dashboard pemilik</h3><p class="hint">Buka link ini di HP pemilik dan simpan sebagai bookmark. Isinya omzet hari ini dan transaksi terakhir, diperbarui otomatis.</p><div class="receipt" style="white-space:normal;word-break:break-all;max-width:none">${esc(u)}</div><div class="row"><button class="btn ghost" id="cpy">Salin link</button><a class="btn primary" style="text-align:center;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Buka</a></div>`);
   $("#cpy").onclick=()=>navigator.clipboard?.writeText(u).then(()=>toast("Link disalin"),()=>toast("Salin manual dari kotak di atas"))};
@@ -955,6 +976,8 @@ const checkPw=async(u,pw)=>(await hashPw(pw,u.salt))===u.hash;
 const isPin=v=>/^\d{6}$/.test(v),PIN_ERR="PIN harus tepat 6 angka";
 const pinField=(id,label)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="••••••"></div>`;
 const onlyDigits=()=>document.querySelectorAll(".pin-in").forEach(i=>i.addEventListener("input",()=>{if(!i.dataset.free)i.value=i.value.replace(/\D/g,"").slice(0,6)}));
+// Salah PIN/kode 5x: kunci 1 menit, lalu 2, 4, 8 ... maks. 30 menit (menyulitkan tebak PIN beruntun)
+function failed(f){f.n++;if(f.n>=5){f.lv=(f.lv||0)+1;f.n=0;f.until=Date.now()+Math.min(30,2**(f.lv-1))*60000}store.set("fails",f)}
 const recoveryCode=()=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(8));return [...r].map(x=>a[x%a.length]).join("").replace(/(.{4})/,"$1-")};
 
 function lockShell(inner,split){$("#lock").innerHTML=`<div class="lock-card${split?" split":""}" role="dialog" aria-modal="true"><div class="lock-brand"><div class="logo" role="img" aria-label="Logo Batang Garing Coffee" style="margin:0;width:64px;height:64px"></div><div><h2>${esc(cfg.name)}</h2><div class="hint">${new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div></div></div>${inner}</div>`;$("#lock").hidden=false}
@@ -975,10 +998,10 @@ function lockScreen(){
     document.querySelectorAll("#keypad button").forEach(b=>b.disabled=off);$("#keypad").classList.toggle("off",off);if(off)$("#lPw").value=""};
   document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>{pick=users.find(u=>u.id===b.dataset.u);document.querySelectorAll("[data-u]").forEach(x=>x.setAttribute("aria-pressed",x===b));$("#lErr").textContent="";pinLock();$("#lPw").focus()});
   const go=async()=>{const err=t=>$("#lErr").textContent=t;const f=store.get("fails",{n:0,until:0});
-    if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${Math.ceil((f.until-Date.now())/1000)} detik.`);
+    if(f.until>Date.now())return err(`Terlalu banyak percobaan salah. Coba lagi dalam ${(w=>w>90?Math.ceil(w/60)+" menit":w+" detik")(Math.ceil((f.until-Date.now())/1000))}.`);
     if(!pick)return err("Pilih nama Anda dulu");
     if(!$("#lPw").value)return err("Masukkan PIN");
-    if(!(await checkPw(pick,$("#lPw").value))){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);$("#lPw").value="";return err("PIN salah")}
+    if(!(await checkPw(pick,$("#lPw").value))){failed(f);$("#lPw").value="";return err("PIN salah")}
     store.set("fails",{n:0,until:0});
     const s=openShift();
     if(s&&s.userId!==pick.id&&pick.role!=="owner")return err(`Shift ${s.name} masih berjalan. Minta ${s.name} atau pemilik menutupnya dulu.`);
@@ -1016,9 +1039,9 @@ function forgotScreen(){
   onlyDigits();$("#fBack").onclick=lockScreen;
   $("#fGo").onclick=async()=>{const err=t=>$("#fErr").textContent=t,rec=store.get("recovery",null),f=store.get("fails",{n:0,until:0});
     if(f.until>Date.now())return err("Terlalu banyak percobaan salah. Tunggu sebentar.");
-    if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){f.n++;if(f.n>=5){f.n=0;f.until=Date.now()+60000}store.set("fails",f);return err("Kode pemulihan salah")}
+    if(!rec||(await hashPw($("#fCode").value.replace(/[^a-z0-9]/gi,"").toUpperCase(),rec.salt))!==rec.hash){failed(f);return err("Kode pemulihan salah")}
     if(!isPin($("#fPw").value))return err(PIN_ERR);
-    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);o.pin=true;saveUsers();
+    const o=users.find(u=>u.role==="owner"&&u.active)||users.find(u=>u.role==="owner");o.active=true;o.salt=uid()+uid();o.hash=await hashPw($("#fPw").value,o.salt);o.pin=true;saveUsers();store.set("fails",{n:0,until:0});
     toast(`PIN ${o.name} sudah diganti`);lockScreen()};
 }
 // Akun lama (password sebelum aturan PIN): wajib ganti ke PIN 6 angka setelah masuk.
@@ -1652,7 +1675,7 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-18-33";
+const BUILD="2026-10-20-35";
 async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
     if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";

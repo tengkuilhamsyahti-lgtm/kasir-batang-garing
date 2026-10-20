@@ -1,7 +1,7 @@
 // Simpan file aplikasi agar kasir tetap jalan saat internet mati.
 // Halaman dan file aplikasi: coba ambil versi terbaru dari internet (maks. 3 detik),
 // kalau gagal atau lambat pakai salinan di tablet. Font: pakai salinan dulu.
-const C='kasir-v33',F=['./','index.html','manifest.json','icon.svg','logo-192.png','logo-512.png'];
+const C='kasir-v35',F=['./','index.html','manifest.json','icon.svg','logo-192.png','logo-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 const save=(req,res)=>{if(res&&(res.ok||res.type==='opaque')){const c=res.clone();caches.open(C).then(x=>x.put(req,c))}return res};
