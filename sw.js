@@ -3,7 +3,7 @@
 // kalau gagal atau lambat pakai salinan di tablet. Font: pakai salinan dulu.
 const C='kasir-v33',F=['./','index.html','manifest.json','icon.svg','logo-192.png','logo-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(F.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith('kasir-')&&x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 const save=(req,res)=>{if(res&&(res.ok||res.type==='opaque')){const c=res.clone();caches.open(C).then(x=>x.put(req,c))}return res};
 const fromCache=req=>caches.match(req,{ignoreSearch:req.mode==='navigate'}).then(r=>r||(req.mode==='navigate'?caches.match('./'):undefined));
 self.addEventListener('fetch',e=>{

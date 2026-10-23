@@ -119,6 +119,15 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 - Butuh Google Chrome terpasang di tablet.
 - APK dibangun otomatis oleh GitHub Actions (`.github/workflows/apk.yml`) dari folder `android/`.
 
+## Monitor pemilik (APK HP)
+
+Aplikasi terpisah untuk HP pemilik: hanya melihat, tidak bisa mengubah data kasir. Isinya penjualan (hari ini, kemarin, 7 hari, bulan ini, bulan lalu), grafik per jam/per hari, cara bayar, menu terlaris, pengeluaran per kategori, shift yang sedang berjalan beserta uang yang seharusnya di laci, riwayat shift dengan selisih laci, refund, pesanan belum dibayar, dan stok menipis. Data diperbarui otomatis tiap 1 menit.
+
+- Syarat: tablet kasir sudah tersambung ke cloud (Atur → Simpan data di cloud). Monitor masuk dengan email dan kata sandi akun cloud yang sama.
+- Halaman web: `monitor/` (https://tengkuilhamsyahti-lgtm.github.io/kasir-batang-garing/monitor/).
+- APK: folder `android-monitor/`, dibangun oleh `.github/workflows/apk-monitor.yml`, diterbitkan di rilis tetap `monitor-apk`: https://github.com/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/download/monitor-apk/BatangGaringMonitor.apk
+- Paket `id.batanggaring.monitor`, ditandatangani dengan kunci yang sama dengan APK kasir. Agar bilah alamat tidak muncul, paket ini harus tercantum di `.well-known/assetlinks.json` pada repo tengkuilhamsyahti-lgtm.github.io.
+
 ## Mode offline
 
 - Setelah aplikasi pernah dibuka sekali saat online, kasir bisa dibuka dan dipakai penuh tanpa internet: login, transaksi, simpan pesanan, cetak struk Bluetooth, stok, pengeluaran, dan tutup shift.

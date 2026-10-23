@@ -1,0 +1,48 @@
+// Aplikasi Android pembungkus (Trusted Web Activity) untuk monitor pemilik Batang Garing.
+// Membuka halaman monitor/ di GitHub Pages lewat Chrome: hanya melihat penjualan,
+// pengeluaran, dan shift dari cloud. Pembaruan halaman web langsung ikut tanpa pasang ulang.
+plugins {
+    id 'com.android.application'
+}
+
+def siteHost = 'tengkuilhamsyahti-lgtm.github.io'
+def siteUrl = 'https://tengkuilhamsyahti-lgtm.github.io/kasir-batang-garing/monitor/'
+
+android {
+    namespace 'id.batanggaring.monitor'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'id.batanggaring.monitor'
+        minSdk 21
+        targetSdk 34
+        versionCode((System.getenv('VERSION_CODE') ?: '1') as int)
+        versionName '1.' + (System.getenv('VERSION_CODE') ?: '0')
+        manifestPlaceholders = [hostName: siteHost, defaultUrl: siteUrl]
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KS_PATH') ?: 'release.jks')
+            storePassword System.getenv('KS_PASS')
+            keyAlias 'kasir'
+            keyPassword System.getenv('KS_PASS')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
