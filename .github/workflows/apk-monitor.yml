@@ -1,0 +1,80 @@
+# Membangun APK monitor pemilik (Trusted Web Activity) dari folder android-monitor/
+# lalu menerbitkannya di rilis tetap "monitor-apk" (tidak menggeser rilis APK kasir terbaru).
+name: Build APK Monitor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android-monitor/**', '.github/workflows/apk-monitor.yml']
+  pull_request:
+    paths: ['android-monitor/**', '.github/workflows/apk-monitor.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Siapkan kunci tanda tangan
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASS_SECRET: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "KS_PASS=$KS_PASS_SECRET" >> "$GITHUB_ENV"
+            echo "Kunci tanda tangan: TETAP (dari secret KEYSTORE_BASE64)"
+          else
+            echo "::warning::Secret KEYSTORE_BASE64 belum ada, memakai kunci acak (bar URL akan muncul)"
+            P=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -alias kasir -keyalg RSA -keysize 2048 \
+              -validity 10000 -storepass "$P" -keypass "$P" -dname "CN=Batang Garing Coffee, O=Batang Garing, C=ID"
+            echo "::add-mask::$P"
+            echo "KS_PASS=$P" >> "$GITHUB_ENV"
+          fi
+          echo "KS_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        working-directory: android-monitor
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Siapkan file
+        run: |
+          cp android-monitor/app/build/outputs/apk/release/app-release.apk BatangGaringMonitor.apk
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          "$BT"apksigner verify --print-certs BatangGaringMonitor.apk | tee sertifikat.txt
+          grep -qi "SHA-256 digest: cdf5dc7b3c9d5df041a06f40ac01a0f8192aed836b1ce40c9b54c823096f1f2e" sertifikat.txt \
+            && echo "Sidik jari cocok dengan assetlinks.json" || echo "::warning::Sidik jari APK tidak cocok dengan assetlinks.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BatangGaringMonitor-apk
+          path: |
+            BatangGaringMonitor.apk
+            sertifikat.txt
+
+      - uses: softprops/action-gh-release@v2
+        if: github.event_name != 'pull_request'
+        with:
+          tag_name: monitor-apk
+          name: Monitor Batang Garing (HP pemilik)
+          body: |
+            Unduh **BatangGaringMonitor.apk** di bawah ini dari HP pemilik, lalu buka file-nya untuk memasang.
+            Aplikasi ini hanya melihat penjualan, pengeluaran, dan shift dari mesin kasir (lewat cloud). Masuk dengan akun cloud yang sama dengan tablet kasir.
+            Versi terakhir: build ${{ github.run_number }}.
+          files: BatangGaringMonitor.apk
+          make_latest: false
