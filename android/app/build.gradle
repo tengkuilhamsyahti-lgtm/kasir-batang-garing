@@ -1,11 +1,10 @@
-// Aplikasi Android pembungkus (Trusted Web Activity) untuk kasir web Batang Garing.
-// Aplikasi membuka halaman GitHub Pages di Chrome tanpa bilah alamat, jadi
-// Web Bluetooth untuk printer struk tetap berfungsi dan pembaruan web langsung ikut.
+// Aplikasi Android kasir Batang Garing (tanpa Chrome).
+// Membuka kasir web GitHub Pages di WebView milik aplikasi sendiri, jadi pembaruan web
+// langsung ikut; printer Bluetooth lewat jembatan native (NativeBridge.java).
 plugins {
     id 'com.android.application'
 }
 
-def siteHost = 'tengkuilhamsyahti-lgtm.github.io'
 def siteUrl = 'https://tengkuilhamsyahti-lgtm.github.io/kasir-batang-garing/'
 
 android {
@@ -18,7 +17,7 @@ android {
         targetSdk 34
         versionCode((System.getenv('VERSION_CODE') ?: '1') as int)
         versionName '1.' + (System.getenv('VERSION_CODE') ?: '0')
-        manifestPlaceholders = [hostName: siteHost, defaultUrl: siteUrl]
+        resValue 'string', 'site_url', siteUrl
     }
 
     signingConfigs {
@@ -41,8 +40,8 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-}
 
-dependencies {
-    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    lint {
+        checkReleaseBuilds false
+    }
 }
