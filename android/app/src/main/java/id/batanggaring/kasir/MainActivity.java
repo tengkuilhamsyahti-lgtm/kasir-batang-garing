@@ -13,19 +13,27 @@ import android.os.Message;
 import android.print.PrintAttributes;
 import android.print.PrintManager;
 import android.view.WindowManager;
+import android.webkit.MimeTypeMap;
+import android.webkit.ServiceWorkerClient;
+import android.webkit.ServiceWorkerController;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-// Aplikasi kasir Batang Garing: membuka kasir web di WebView milik aplikasi sendiri,
-// jadi tidak butuh Chrome. Printer Bluetooth, simpan file, salin teks, dan cetak
+// Aplikasi kasir Batang Garing: menampilkan kasir web di WebView milik aplikasi sendiri,
+// jadi tidak butuh Chrome. File kasir dibawa di dalam APK, jadi jalan tanpa internet sejak awal. Printer Bluetooth, simpan file, salin teks, dan cetak
 // lewat jembatan native (NativeBridge) karena WebView tidak punya Web Bluetooth.
 public class MainActivity extends Activity {
     static final int REQ_FILE = 11, REQ_PERM = 12;
@@ -61,6 +69,13 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(bridge, "BGApp");
         web.setWebViewClient(new Client());
         web.setWebChromeClient(new Chrome());
+        // permintaan dari service worker lama juga dilayani dari dalam APK
+        if (Build.VERSION.SDK_INT >= 24) {
+            ServiceWorkerController.getInstance().setServiceWorkerClient(new ServiceWorkerClient() {
+                @Override
+                public WebResourceResponse shouldInterceptRequest(WebResourceRequest r) { return local(r.getUrl()); }
+            });
+        }
 
         if (saved != null) web.restoreState(saved);
         else web.loadUrl(siteUrl);
@@ -89,6 +104,29 @@ public class MainActivity extends Activity {
         Uri site = Uri.parse(siteUrl);
         return "https".equals(u.getScheme()) && site.getHost().equals(u.getHost())
                 && u.getPath() != null && u.getPath().startsWith(site.getPath());
+    }
+
+    // File kasir (index.html, ikon, manifest) ada di dalam APK (assets/www, disalin saat build).
+    // Alamatnya tetap alamat GitHub Pages supaya data yang tersimpan (localStorage) tetap sama.
+    WebResourceResponse local(Uri u) {
+        if (!isOwnPage(u)) return null;
+        String path = u.getPath().substring(Uri.parse(siteUrl).getPath().length());
+        if (path.isEmpty() || path.endsWith("/")) path += "index.html";
+        try {
+            InputStream in = getAssets().open("www/" + path);
+            String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(MimeTypeMap.getFileExtensionFromUrl(path));
+            if (path.endsWith(".json")) mime = "application/json";
+            if (path.endsWith(".svg")) mime = "image/svg+xml";
+            if (mime == null) mime = "application/octet-stream";
+            boolean text = mime.startsWith("text/") || mime.endsWith("json") || mime.endsWith("xml");
+            WebResourceResponse res = new WebResourceResponse(mime, text ? "utf-8" : null, in);
+            Map<String, String> h = new HashMap<>();
+            h.put("Cache-Control", "no-cache");
+            res.setResponseHeaders(h);
+            return res;
+        } catch (IOException e) {
+            return null; // file tidak ada di APK: ambil dari internet
+        }
     }
 
     // WhatsApp, tautan luar, dan skema lain dibuka di aplikasi yang sesuai
@@ -156,6 +194,9 @@ public class MainActivity extends Activity {
     }
 
     class Client extends WebViewClient {
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) { return local(r.getUrl()); }
+
         @Override
         public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
             if (isOwnPage(r.getUrl())) return false;

@@ -157,6 +157,55 @@ public class NativeBridge {
         });
     }
 
+    // cadangan otomatis: tulis ke Download/BatangGaring lalu sisakan 7 file terbaru
+    // (hanya file buatan aplikasi ini yang bisa dihapus; file dari pemasangan lama dibiarkan)
+    static final String BACKUP_DIR = "BatangGaring";
+    static final int BACKUP_KEEP = 7;
+
+    @JavascriptInterface
+    public void autoBackup(String name, String text, String id) {
+        bt.execute(() -> {
+            try {
+                byte[] data = text.getBytes(StandardCharsets.UTF_8);
+                if (Build.VERSION.SDK_INT >= 29) {
+                    String rel = Environment.DIRECTORY_DOWNLOADS + "/" + BACKUP_DIR + "/";
+                    Uri col = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
+                    android.content.ContentResolver cr = act.getContentResolver();
+                    cr.delete(col, MediaStore.Downloads.RELATIVE_PATH + "=? AND " + MediaStore.Downloads.DISPLAY_NAME + "=?", new String[]{rel, name});
+                    ContentValues v = new ContentValues();
+                    v.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                    v.put(MediaStore.Downloads.MIME_TYPE, "application/json");
+                    v.put(MediaStore.Downloads.RELATIVE_PATH, rel);
+                    Uri u = cr.insert(col, v);
+                    if (u == null) throw new IOException("folder Download tidak bisa dibuka");
+                    try (OutputStream o = cr.openOutputStream(u)) {
+                        if (o == null) throw new IOException("file tidak bisa ditulis");
+                        o.write(data);
+                    }
+                    try (android.database.Cursor c = cr.query(col, new String[]{MediaStore.Downloads._ID},
+                            MediaStore.Downloads.RELATIVE_PATH + "=?", new String[]{rel}, MediaStore.Downloads.DATE_ADDED + " DESC")) {
+                        int n = 0;
+                        while (c != null && c.moveToNext())
+                            if (++n > BACKUP_KEEP) cr.delete(android.content.ContentUris.withAppendedId(col, c.getLong(0)), null, null);
+                    }
+                } else {
+                    File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), BACKUP_DIR);
+                    if (!dir.isDirectory() && !dir.mkdirs()) dir = act.getExternalFilesDir(BACKUP_DIR);
+                    try (FileOutputStream o = new FileOutputStream(new File(dir, name))) { o.write(data); }
+                    File[] all = dir.listFiles((d, f) -> f.startsWith("cadangan-kasir-") && f.endsWith(".json"));
+                    if (all != null && all.length > BACKUP_KEEP) {
+                        java.util.Arrays.sort(all, (x, y) -> Long.compare(y.lastModified(), x.lastModified()));
+                        for (int i = BACKUP_KEEP; i < all.length; i++) //noinspection ResultOfMethodCallIgnored
+                            all[i].delete();
+                    }
+                }
+                ok(id, "true");
+            } catch (Exception e) {
+                fail(id, "Cadangan otomatis gagal: " + e.getMessage());
+            }
+        });
+    }
+
     // ---------- printer Bluetooth ----------
 
     // jalankan kerja Bluetooth setelah izin ada dan Bluetooth tablet menyala
