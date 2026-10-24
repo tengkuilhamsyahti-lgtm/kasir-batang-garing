@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['android/**', '.github/workflows/apk.yml']
+    paths: ['android/**', '.github/workflows/apk.yml', 'index.html', 'manifest.json', 'icon.svg', 'logo-*.png', 'icon-maskable-512.png']
   pull_request:
-    paths: ['android/**', '.github/workflows/apk.yml']
+    paths: ['android/**', '.github/workflows/apk.yml', 'index.html', 'manifest.json', 'icon.svg', 'logo-*.png', 'icon-maskable-512.png']
 
 permissions:
   contents: write
@@ -77,7 +77,8 @@ jobs:
           name: Kasir Batang Garing APK ${{ github.run_number }}
           body: |
             Unduh **KasirBatangGaring.apk** di bawah ini dari tablet Android, lalu buka file-nya untuk memasang.
-            Aplikasi berjalan sendiri tanpa Chrome dan menyambung ke printer Bluetooth langsung. Pembaruan kasir web tetap langsung ikut tanpa memasang ulang APK.
+            Aplikasi berjalan sendiri tanpa Chrome dan tanpa internet (tampilan kasir ada di dalam APK), menyambung ke printer Bluetooth langsung, dan mencadangkan data otomatis setiap hari ke folder Download/BatangGaring.
+            Pasang di atas versi lama, data tetap ada.
             Pindah dari APK lama (versi Chrome)? Sebelum memasang, buka aplikasi lama lalu Atur → Data → Simpan cadangan lengkap. Setelah APK ini terpasang, di layar Buat akun pemilik ketuk "Pulihkan dari file cadangan".
           files: KasirBatangGaring.apk
           make_latest: true

@@ -1,6 +1,6 @@
 // Aplikasi Android kasir Batang Garing (tanpa Chrome).
-// Membuka kasir web GitHub Pages di WebView milik aplikasi sendiri, jadi pembaruan web
-// langsung ikut; printer Bluetooth lewat jembatan native (NativeBridge.java).
+// Kasir web dibawa di dalam APK dan ditampilkan di WebView milik aplikasi sendiri (alamatnya tetap
+// alamat GitHub Pages agar data tersimpan tetap sama); printer Bluetooth lewat NativeBridge.java.
 plugins {
     id 'com.android.application'
 }
@@ -44,4 +44,17 @@ android {
     lint {
         checkReleaseBuilds false
     }
+
+    sourceSets {
+        main.assets.srcDirs += "$buildDir/generated/web"
+    }
 }
+
+// salin file kasir web dari akar repo ke dalam APK (assets/www) supaya jalan tanpa internet
+def copyWeb = tasks.register('copyWeb', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'manifest.json', 'icon.svg', 'logo-192.png', 'logo-512.png', 'icon-maskable-512.png'
+    }
+    into "$buildDir/generated/web/www"
+}
+tasks.named('preBuild') { dependsOn copyWeb }
