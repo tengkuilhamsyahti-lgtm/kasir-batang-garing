@@ -114,10 +114,13 @@ Aplikasi kasir berbasis web (PWA). Jalan di tablet Android, PC/laptop, atau HP l
 
 ## Aplikasi Android (APK)
 
-- Unduh dari tablet: https://github.com/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/latest/download/KasirBatangGaring.apk lalu buka file-nya. Izinkan *pasang dari sumber tidak dikenal* untuk Chrome bila diminta.
-- APK ini membuka kasir web di Chrome (Trusted Web Activity), jadi printer Bluetooth tetap jalan, data yang sudah ada di Chrome ikut terbaca, dan pembaruan web langsung ikut tanpa memasang ulang.
-- Butuh Google Chrome terpasang di tablet.
-- APK dibangun otomatis oleh GitHub Actions (`.github/workflows/apk.yml`) dari folder `android/`.
+- Unduh dari tablet: https://github.com/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/latest/download/KasirBatangGaring.apk lalu buka file-nya. Izinkan *pasang dari sumber tidak dikenal* bila diminta.
+- APK ini berjalan sendiri **tanpa Chrome dan tanpa internet**: tampilan kasir dibawa di dalam APK, dan semua data tersimpan di tablet. Pembaruan tampilan kasir datang lewat APK baru; aplikasi menampilkan pemberitahuan *Versi baru aplikasi tersedia* lalu tinggal unduh dan pasang di atasnya (data tetap ada).
+- **Cadangan otomatis:** setiap hari dan setiap tutup shift, aplikasi menyimpan cadangan lengkap ke folder `Download/BatangGaring` (7 file terakhir disimpan). Salin folder itu sesekali ke HP/Google Drive supaya aman kalau tablet hilang atau rusak. Memulihkan: di layar *Buat akun pemilik* ketuk **Pulihkan dari file cadangan**, atau **Atur → Data → Pulihkan cadangan**, lalu pilih file terbaru. Android juga ikut mencadangkan data aplikasi ke akun Google kalau *Cadangan Google* di pengaturan tablet aktif.
+- Printer Bluetooth disambung langsung oleh aplikasi (Bluetooth klasik/SPP, atau BLE kalau printernya hanya BLE). Ketuk **Sambung printer**, pilih printer yang sudah dipasangkan di pengaturan Bluetooth tablet, atau ketuk **Cari printer baru**. Saat pertama kali, izinkan *Perangkat sekitar*. Aplikasi mengingat printernya dan menyambung ulang sendiri.
+- **Pindah dari APK lama (versi Chrome):** data lama tersimpan di Chrome, bukan di aplikasi. Sebelum memasang APK baru, buka aplikasi lama → **Atur → Data → Simpan cadangan lengkap** (file masuk ke folder Download). Pasang APK baru di atas yang lama (tidak perlu hapus), buka, lalu di layar *Buat akun pemilik* ketuk **Pindah dari aplikasi lama? Pulihkan dari file cadangan** dan pilih file tadi. Cara lain: ambil dari Supabase kalau data sudah tersinkron ke cloud.
+- APK ditandatangani dengan kunci tetap (secret `KEYSTORE_BASE64`), jadi versi baru selalu bisa dipasang di atas versi lama.
+- APK dibangun otomatis oleh GitHub Actions (`.github/workflows/apk.yml`) dari folder `android/`: di pull request hanya dibangun untuk diperiksa, di `main` diterbitkan ke Releases.
 
 ## Mode offline
 

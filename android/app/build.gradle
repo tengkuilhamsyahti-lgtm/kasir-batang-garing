@@ -1,11 +1,10 @@
-// Aplikasi Android pembungkus (Trusted Web Activity) untuk kasir web Batang Garing.
-// Aplikasi membuka halaman GitHub Pages di Chrome tanpa bilah alamat, jadi
-// Web Bluetooth untuk printer struk tetap berfungsi dan pembaruan web langsung ikut.
+// Aplikasi Android kasir Batang Garing (tanpa Chrome).
+// Kasir web dibawa di dalam APK dan ditampilkan di WebView milik aplikasi sendiri (alamatnya tetap
+// alamat GitHub Pages agar data tersimpan tetap sama); printer Bluetooth lewat NativeBridge.java.
 plugins {
     id 'com.android.application'
 }
 
-def siteHost = 'tengkuilhamsyahti-lgtm.github.io'
 def siteUrl = 'https://tengkuilhamsyahti-lgtm.github.io/kasir-batang-garing/'
 
 android {
@@ -18,7 +17,7 @@ android {
         targetSdk 34
         versionCode((System.getenv('VERSION_CODE') ?: '1') as int)
         versionName '1.' + (System.getenv('VERSION_CODE') ?: '0')
-        manifestPlaceholders = [hostName: siteHost, defaultUrl: siteUrl]
+        resValue 'string', 'site_url', siteUrl
     }
 
     signingConfigs {
@@ -41,8 +40,21 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    lint {
+        checkReleaseBuilds false
+    }
+
+    sourceSets {
+        main.assets.srcDirs += "$buildDir/generated/web"
+    }
 }
 
-dependencies {
-    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+// salin file kasir web dari akar repo ke dalam APK (assets/www) supaya jalan tanpa internet
+def copyWeb = tasks.register('copyWeb', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'manifest.json', 'icon.svg', 'logo-192.png', 'logo-512.png', 'icon-maskable-512.png'
+    }
+    into "$buildDir/generated/web/www"
 }
+tasks.named('preBuild') { dependsOn copyWeb }

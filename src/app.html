@@ -427,7 +427,7 @@ td.r,th.r{text-align:right}
       </div>
       <div class="panel" style="display:grid;gap:12px">
         <h3 style="margin:0;font-size:16px"><span class="status-dot" id="prDot"></span>Printer struk</h3>
-        <p class="hint">Printer Bluetooth mini 58 mm. Nyalakan printer dan Bluetooth tablet, buka aplikasi di Chrome, ketuk Sambung Bluetooth lalu pilih printernya. Ulangi setiap kali aplikasi dibuka ulang, bisa juga lewat tombol "Sambung printer" di layar kasir. Kalau tidak bisa, struk tetap bisa dicetak lewat dialog cetak browser.</p>
+        <p class="hint">Printer Bluetooth mini 58 mm. Nyalakan printer dan Bluetooth tablet, ketuk Sambung Bluetooth lalu pilih printernya. Ulangi setiap kali aplikasi dibuka ulang, bisa juga lewat tombol "Sambung printer" di layar kasir. Kalau tidak bisa, struk tetap bisa dicetak lewat dialog cetak browser.</p>
         <div class="form-grid">
           <div class="field"><label for="sPaper">Lebar kertas</label><select id="sPaper"><option value="32">58 mm (32 karakter)</option><option value="48">80 mm (48 karakter)</option></select></div>
           <div class="field"><label for="sAutoPrint">Cetak otomatis setelah bayar</label><select id="sAutoPrint"><option value="1">Ya</option><option value="0">Tidak</option></select></div>
@@ -476,7 +476,9 @@ td.r,th.r{text-align:right}
       </div>
       <div class="panel" style="display:grid;gap:12px">
         <h3 style="margin:0;font-size:16px">Data</h3>
-        <p class="hint">Cadangkan menu ke file, atau muat dari file cadangan di perangkat lain.</p>
+        <p class="hint">Cadangan lengkap menyimpan semua data kasir (menu, stok, transaksi, shift, akun kasir, pengaturan) ke satu file di folder Download. Pakai untuk pindah ke aplikasi atau tablet baru: di sana ketuk Pulihkan cadangan dan pilih file itu.</p>
+        <p class="hint" id="autoBkInfo" hidden></p>
+        <div class="row"><button class="btn primary" id="backupAll">Simpan cadangan lengkap</button><label class="btn ghost" style="text-align:center">Pulihkan cadangan<input type="file" id="restoreAll" accept=".json,application/json" hidden></label></div>
         <div class="row"><button class="btn ghost" id="exportMenu">Salin data menu &amp; bahan</button><label class="btn ghost" style="text-align:center">Muat file menu<input type="file" id="importMenu" accept=".json" hidden></label><button class="btn danger" id="resetAll">Hapus semua transaksi</button></div>
       </div>
     </div></div>
@@ -704,11 +706,13 @@ const useLogo=()=>+(cfg.receiptLogo??1)===1;
 const printReceipt=tr=>printLines(receiptText(tr),useLogo());
 async function printLines(lines,withLogo){
   if(!printer&&btDev)await btAttach(btDev,true).catch(()=>{});
+  if(!printer&&APP&&appBtSaved())await appBtAttach(appBtSaved(),true).catch(()=>{});
   if(printer){try{await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e){
     // koneksi Bluetooth sering putus saat printer/tablet hemat daya: sambung ulang sekali lalu coba lagi
     if(btDev)try{await btAttach(btDev,true);await printer.write(escpos(lines,withLogo));toast("Struk dicetak");return}catch(e2){}
     toast("Printer terputus, cetak lewat browser");printer=null;setPrinterUi()}}
   $("#printArea").innerHTML=(withLogo?`<img src="${LOGO}" alt="">`:"")+esc(lines.join("\n"));
+  if(APP)return APP.print(); // dialog cetak Android membaca halaman belakangan, jadi isi struk tidak dihapus
   try{window.print()}catch(e){}
   setTimeout(()=>{$("#printArea").innerHTML=""},1500);
 }
@@ -720,6 +724,39 @@ async function connectUsb(){
     printer={name:dev.productName||"Printer USB",close:()=>dev.close(),write:d=>dev.transferOut(ep,d)};setPrinterUi();toast("Printer USB tersambung");
   }catch(e){if(e.name!=="NotFoundError")toast("Gagal menyambung USB: "+e.message)}
 }
+// Aplikasi Android Batang Garing (tanpa Chrome) tidak punya Web Bluetooth: printer, simpan file,
+// dan salin teks lewat jembatan native window.BGApp (android/app/src/main/java/.../NativeBridge.java)
+const APP=window.BGApp||null,natCb={};let natN=0;
+const nat=(fn,...a)=>new Promise((res,rej)=>{const id="n"+(++natN);natCb[id]={res,rej};try{APP[fn](...a,id)}catch(e){delete natCb[id];rej(e)}});
+window.__bgDone=(id,ok,d)=>{const c=natCb[id];if(!c)return;delete natCb[id];ok?c.res(d):c.rej(new Error(d))};
+window.__bgEvent=t=>{if(t==="btlost"&&printer&&printer.app){printer=null;setPrinterUi()}};
+const copyText=s=>APP?(APP.copy(s),Promise.resolve()):navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject();
+const u8b64=u8=>{let s="";for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s)};
+const appBtSaved=()=>{try{return localStorage.getItem("bgcafe.btAddr")}catch(e){return null}};
+async function appBtAttach(addr,quiet){
+  const d=await nat("btConnect",addr);
+  printer={name:d.name||"Printer Bluetooth",bt:true,app:true,close:()=>APP.btClose(),write:u8=>nat("btWrite",u8b64(u8))};
+  try{localStorage.setItem("bgcafe.btAddr",addr)}catch(e){}
+  setPrinterUi();if(!quiet)toast("Printer Bluetooth tersambung");
+}
+// pilih printer: yang sudah dipasangkan (pairing) di tablet, atau cari printer baru di sekitar
+function appBtPick(){return new Promise(async done=>{
+  let list;try{list=await nat("btList")}catch(e){toast(e.message);return done()}
+  const busy=on=>document.querySelectorAll("#modal button").forEach(x=>x.disabled=on);
+  const show=(items,note)=>{
+    modal(`<h3>Pilih printer Bluetooth</h3><p class="hint">${note}</p>
+      <div style="display:grid;gap:8px">${items.map((d,i)=>`<button class="btn ghost" data-i="${i}" style="text-align:left">${esc(d.name)}<span class="hint" style="display:block;font-size:12px">${esc(d.address)}${d.paired?"":" · belum dipasangkan"}</span></button>`).join("")||`<p class="hint">Belum ada printer di daftar.</p>`}</div>
+      <p class="hint" id="apMsg"></p>
+      <div class="row"><button class="btn ghost" id="apScan">Cari printer baru</button><button class="btn ghost" id="apClose">Tutup</button></div>`);
+    $("#apClose").onclick=()=>{closeModal();done()};
+    $("#apScan").onclick=async()=>{busy(true);$("#apMsg").textContent="Mencari printer di sekitar (10 detik). Pastikan printer menyala…";
+      try{show(await nat("btScan"),"Printer yang ditemukan di sekitar. Kalau tablet meminta PIN pairing, coba 0000 atau 1234.")}catch(e){$("#apMsg").textContent=e.message;busy(false)}};
+    document.querySelectorAll("#modal [data-i]").forEach(b=>b.onclick=async()=>{const d=items[+b.dataset.i];
+      busy(true);$("#apMsg").textContent=`Menyambung ke ${d.name}…`;
+      try{await appBtAttach(d.address);closeModal();done()}catch(e){$("#apMsg").textContent=e.message;busy(false)}});
+  };
+  show(list,"Printer yang sudah dipasangkan (pairing) di pengaturan Bluetooth tablet. Printer belum ada di daftar? Ketuk Cari printer baru.");
+})}
 const BT_SV=["000018f0-0000-1000-8000-00805f9b34fb","e7810a71-73ae-499d-8c15-faa9aef0c3f2","0000ff00-0000-1000-8000-00805f9b34fb","49535343-fe7d-4ae5-8fa9-9fafd205e455"];
 let btDev=null,btRetry=0,btTimer=null;
 // sambung ke printer Bluetooth yang sudah pernah dipilih (tanpa jendela pilih perangkat)
@@ -739,6 +776,7 @@ function btLost(e){
   btTimer=setTimeout(()=>{btRetry++;if(btDev&&!printer)btAttach(btDev,true).then(()=>toast("Printer tersambung lagi")).catch(()=>btLost({target:btDev}))},[2,5,10,20,30][btRetry]*1000);
 }
 async function connectBt(){
+  if(APP)return appBtPick();
   if(!navigator.bluetooth)return toast("Browser ini belum mendukung Bluetooth. Pakai Chrome di Android atau PC.");
   try{const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:BT_SV});
     if(btDev&&btDev!==dev){const old=btDev;btDev=null;try{old.gatt.disconnect()}catch(e){}}
@@ -747,23 +785,25 @@ async function connectBt(){
 }
 // setelah aplikasi dibuka ulang: coba sambung lagi ke printer terakhir kalau Chrome mengizinkan
 async function btRestore(){
+  if(APP){if(appBtSaved()&&!printer)appBtAttach(appBtSaved(),true).catch(()=>{});return}
   try{const id=localStorage.getItem("bgcafe.btId");if(!id||!navigator.bluetooth?.getDevices||printer)return;
     const dev=(await navigator.bluetooth.getDevices()).find(d=>d.id===id);if(dev)await btAttach(dev)}catch(e){}
 }
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!printer&&btDev){btRetry=0;btAttach(btDev,true).then(()=>toast("Printer tersambung lagi")).catch(()=>{})}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!printer&&APP&&appBtSaved())appBtAttach(appBtSaved(),true).catch(()=>{});
+  if(document.visibilityState==="visible"&&!printer&&btDev){btRetry=0;btAttach(btDev,true).then(()=>toast("Printer tersambung lagi")).catch(()=>{})}});
 function setPrinterUi(){$("#qpDot").classList.toggle("on",!!printer);$("#qpText").textContent=printer?"Printer siap":"Sambung printer";$("#prDot").classList.toggle("on",!!printer);$("#prStatus").textContent=printer?`Tersambung: ${printer.name}`:"Belum ada printer tersambung. Struk akan dicetak lewat dialog cetak browser."}
 const testPrint=()=>printReceipt({no:"TES-001",time:new Date().toISOString(),items:[{name:"Tes printer",qty:1,price:1000}],sub:1000,tax:0,total:1000,method:"Tunai",paid:1000,change:0});
 // menu printer untuk semua akun (pemilik dan kasir), dari tombol printer di layar kasir
 function printerModal(){
   modal(`<h3><span class="status-dot${printer?" on":""}"></span>Printer struk</h3>
     <p class="hint">${printer?`Tersambung: <b>${esc(printer.name)}</b>`:"Belum ada printer tersambung. Nyalakan printer dan Bluetooth tablet, lalu ketuk Sambung Bluetooth dan pilih printernya."}</p>
-    <div class="row" style="flex-wrap:wrap"><button class="btn primary" id="pmBt">${printer?"Ganti printer":"Sambung Bluetooth"}</button><button class="btn ghost" id="pmUsb">Sambung USB</button><button class="btn ghost" id="pmTest">Tes cetak</button>${printer?`<button class="btn ghost" id="pmOff">Putuskan</button>`:""}</div>
+    <div class="row" style="flex-wrap:wrap"><button class="btn primary" id="pmBt">${printer?"Ganti printer":"Sambung Bluetooth"}</button>${APP?"":`<button class="btn ghost" id="pmUsb">Sambung USB</button>`}<button class="btn ghost" id="pmTest">Tes cetak</button>${printer?`<button class="btn ghost" id="pmOff">Putuskan</button>`:""}</div>
     <div class="row"><button class="btn ghost" data-close>Tutup</button></div>`);
   const done=()=>{if(printer)closeModal()};
-  $("#pmBt").onclick=()=>connectBt().then(done);$("#pmUsb").onclick=()=>connectUsb().then(done);$("#pmTest").onclick=testPrint;
-  if($("#pmOff"))$("#pmOff").onclick=()=>{try{printer.close&&printer.close()}catch(e){}printer=null;try{localStorage.removeItem("bgcafe.btId")}catch(e){}setPrinterUi();closeModal();toast("Printer diputuskan")};
+  $("#pmBt").onclick=()=>connectBt().then(done);if($("#pmUsb"))$("#pmUsb").onclick=()=>connectUsb().then(done);$("#pmTest").onclick=testPrint;
+  if($("#pmOff"))$("#pmOff").onclick=()=>{try{printer.close&&printer.close()}catch(e){}printer=null;try{localStorage.removeItem("bgcafe.btId");localStorage.removeItem("bgcafe.btAddr")}catch(e){}setPrinterUi();closeModal();toast("Printer diputuskan")};
 }
-$("#connUsb").onclick=connectUsb;$("#quickPrinter").onclick=printerModal;$("#connBt").onclick=connectBt;
+$("#connUsb").onclick=connectUsb;if(APP)$("#connUsb").hidden=true;$("#quickPrinter").onclick=printerModal;$("#connBt").onclick=connectBt;
 $("#testPrint").onclick=testPrint;
 setTimeout(btRestore,800);
 
@@ -885,7 +925,7 @@ function renderReport(){
 }
 
 // ---------- pengaturan ----------
-function fillSettings(){renderUsers();fillCloud();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sDev").value=devCode();$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
+function fillSettings(){renderUsers();fillCloud();autoBackupInfo();$("#sIdle").value=String(cfg.idle||5);$("#sUi").value=cfg.ui||"auto";$("#sTables").value=cfg.tables??12;$("#sDev").value=devCode();$("#sName").value=cfg.name;$("#sAddr").value=cfg.addr;$("#sTax").value=cfg.tax;$("#sFooter").value=cfg.footer;$("#sPaper").value=cfg.paper;$("#sAutoPrint").value=cfg.autoPrint;$("#sAutoShift").value=String(cfg.autoShift??1);$("#sLogo").value=String(cfg.receiptLogo??1);$("#sSheet").value=cfg.sheet;$("#sKey").value=cfg.key;$("#sWa").value=cfg.wa||"";$("#waDot").classList.toggle("on",!!cfg.wa);$("#shDot").classList.toggle("on",!!cfg.sheet);setPrinterUi()}
 $("#saveSettings").onclick=()=>{cfg={...cfg,name:$("#sName").value.trim()||"Batang Garing Coffee",addr:$("#sAddr").value.trim(),tax:+$("#sTax").value||0,footer:$("#sFooter").value,paper:+$("#sPaper").value,autoPrint:+$("#sAutoPrint").value,autoShift:+$("#sAutoShift").value,receiptLogo:+$("#sLogo").value,sheet:$("#sSheet").value.trim(),key:$("#sKey").value.trim()};saveCfg();fillSettings();toast("Pengaturan disimpan");syncPending(false)};
 $("#sDev").onchange=()=>{const v=$("#sDev").value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,2);if(v){store.set("devcode",v);toast("Kode perangkat: "+v)}$("#sDev").value=devCode();renderPos()};
 $("#testSheet").onclick=async()=>{const url=$("#sSheet").value.trim(),key=$("#sKey").value.trim();if(!/^https:\/\/script\.google\.com\/.+\/exec/.test(url))return shUi("URL Web App harus seperti https://script.google.com/macros/s/…/exec");
@@ -897,10 +937,11 @@ $("#testSheet").onclick=async()=>{const url=$("#sSheet").value.trim(),key=$("#sK
   catch(e){shUi("Tidak bisa menghubungi Apps Script. Cek internet, URL, dan pastikan Web App diatur Who has access: Anyone.")}};
 $("#openDash").onclick=()=>{if(!cfg.sheet)return toast("Isi dulu URL Web App");const u=cfg.sheet+"?key="+encodeURIComponent(cfg.key);
   modal(`<h3>Dashboard pemilik</h3><p class="hint">Buka link ini di HP pemilik dan simpan sebagai bookmark. Isinya omzet hari ini dan transaksi terakhir, diperbarui otomatis.</p><div class="receipt" style="white-space:normal;word-break:break-all;max-width:none">${esc(u)}</div><div class="row"><button class="btn ghost" id="cpy">Salin link</button><a class="btn primary" style="text-align:center;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Buka</a></div>`);
-  $("#cpy").onclick=()=>navigator.clipboard?.writeText(u).then(()=>toast("Link disalin"),()=>toast("Salin manual dari kotak di atas"))};
-$("#exportMenu").onclick=()=>{const s=JSON.stringify({menu,bahan},null,1);navigator.clipboard?.writeText(s).then(()=>toast("Data menu disalin. Tempel ke catatan sebagai cadangan."),()=>toast("Gagal menyalin"))};
+  $("#cpy").onclick=()=>copyText(u).then(()=>toast("Link disalin"),()=>toast("Salin manual dari kotak di atas"))};
+$("#exportMenu").onclick=()=>{const s=JSON.stringify({menu,bahan},null,1);copyText(s).then(()=>toast("Data menu disalin. Tempel ke catatan sebagai cadangan."),()=>toast("Gagal menyalin"))};
 $("#importMenu").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{let d=JSON.parse(t);if(!Array.isArray(d)){if(!d||!Array.isArray(d.menu))throw 0;if(Array.isArray(d.bahan)){bahan=d.bahan;saveBahan()}d=d.menu}
     menu=d.map(x=>({id:x.id||uid(),name:x.name,cat:x.cat||"Lainnya",price:+x.price,on:x.on!==false,recipe:Array.isArray(x.recipe)?x.recipe:[]}));saveMenu();toast(`${menu.length} menu dimuat`);renderPos()}).catch(()=>toast("File tidak dikenali"))};
+$("#backupAll").onclick=backupAll;$("#restoreAll").onchange=e=>{restoreAll(e.target.files[0]);e.target.value=""};
 $("#saveWa").onclick=()=>{const v=$("#sWa").value.trim();if(v&&!waNum(v))return toast("Nomor WhatsApp tidak valid");cfg.wa=v;saveCfg();fillSettings();toast(v?"Nomor WhatsApp disimpan":"Laporan WhatsApp dimatikan")};
 $("#testWa").onclick=()=>{const n=waNum($("#sWa").value);if(!n)return toast("Isi nomor WhatsApp dulu");window.open(waLink(n,`Tes laporan kasir ${cfg.name}. Kalau pesan ini sampai, laporan tutup shift akan dikirim ke nomor ini.`),"_blank","noopener")};
 $("#sTables").onchange=()=>{cfg.tables=Math.max(0,Math.min(60,Math.round(+$("#sTables").value||0)));saveCfg();toast(`Jumlah meja: ${cfg.tables}`)};
@@ -1009,8 +1050,9 @@ function setupScreen(){
     <div class="field"><label for="oName">Nama pemilik</label><input id="oName" placeholder="mis. Tengku" autocomplete="name"></div>
     ${pinField("oPw","PIN (6 angka)")}${pinField("oPw2","Ulangi PIN")}
     <p class="err" id="oErr"></p><button class="btn primary" id="oGo">Buat akun</button>
-    <button class="linkbtn" id="oCloud">Data kasir sudah ada di cloud? Ambil dari Supabase</button>`);
-  onlyDigits();$("#oName").focus();$("#oCloud").onclick=cloudRestoreScreen;
+    <button class="linkbtn" id="oCloud">Data kasir sudah ada di cloud? Ambil dari Supabase</button>
+    <label class="linkbtn" style="cursor:pointer">Pindah dari aplikasi lama? Pulihkan dari file cadangan<input type="file" id="oRestore" accept=".json,application/json" hidden></label>`);
+  onlyDigits();$("#oName").focus();$("#oCloud").onclick=cloudRestoreScreen;$("#oRestore").onchange=e=>{restoreAll(e.target.files[0]);e.target.value=""};
   $("#oGo").onclick=async()=>{const err=t=>$("#oErr").textContent=t,name=$("#oName").value.trim(),pw=$("#oPw").value;
     if(!name)return err("Nama wajib diisi");if(!isPin(pw))return err(PIN_ERR);if(pw!==$("#oPw2").value)return err("Kedua PIN tidak sama");
     const u=await makeUser(name,"owner",pw);const code=recoveryCode();const rs=uid()+uid();
@@ -1019,6 +1061,37 @@ function setupScreen(){
       <div class="code">${code}</div><button class="btn primary" id="oDone">Sudah saya catat</button>`);
     $("#oDone").onclick=openShiftScreen};
 }
+// cadangan lengkap: semua data kasir di perangkat ini dalam satu file, untuk pindah ke aplikasi atau tablet lain
+// kode perangkat tidak ikut cadangan: perangkat yang dipulihkan dari cadangan tetap punya kode sendiri (nomor struk tidak bentrok)
+const backupKey=k=>k&&k.startsWith("bgcafe.")&&!k.startsWith("bgcafe.bt")&&k!=="bgcafe.autoBackup"&&k!=="bgcafe.devcode";
+function backupData(){
+  const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(backupKey(k))data[k]=localStorage.getItem(k)}
+  if(data["bgcafe.cloud"])try{const c=JSON.parse(data["bgcafe.cloud"]);c.session=null;data["bgcafe.cloud"]=JSON.stringify(c)}catch(e){} // sesi login cloud tidak ikut
+  return {txt:JSON.stringify({app:"kasir-batang-garing",backup:1,time:new Date().toISOString(),data}),name:`cadangan-kasir-${new Date().toISOString().slice(0,10)}.json`};
+}
+function backupAll(){
+  const {txt,name}=backupData();
+  if(APP)return nat("saveFile",name,"application/json",txt).then(p=>toast("Cadangan disimpan: "+p),e=>toast(e.message));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.append(a);a.click();a.remove();
+  toast("Cadangan diunduh ke folder Download: "+name);
+}
+function restoreAll(f){if(!f)return;f.text().then(t=>{const d=JSON.parse(t);if(!d||d.app!=="kasir-batang-garing"||!d.data)throw 0;
+  const tr=JSON.parse(d.data["bgcafe.trx"]||"[]").length,mn=JSON.parse(d.data["bgcafe.menu"]||"[]").length;
+  modal(`<h3>Pulihkan cadangan?</h3><p class="hint">File tanggal <b>${esc(String(d.time||"").slice(0,10))}</b> berisi ${mn} menu dan ${tr} transaksi. Semua data kasir di perangkat ini akan diganti dengan isi file.</p>
+    <div class="row"><button class="btn primary" id="rsGo">Pulihkan</button><button class="btn ghost" data-close>Batal</button></div>`);
+  $("#modal .scrim").style.zIndex=40; // tampil juga di atas layar masuk (pulihkan sebelum ada akun)
+  $("#rsGo").onclick=()=>{Object.keys(localStorage).filter(backupKey).forEach(k=>localStorage.removeItem(k));
+    for(const[k,v]of Object.entries(d.data))if(backupKey(k))localStorage.setItem(k,v);
+    closeModal();toast("Cadangan dipulihkan, memuat ulang…");setTimeout(()=>location.reload(),800)}}).catch(()=>toast("File cadangan tidak dikenali"))}
+// cadangan otomatis (hanya di aplikasi Android): sehari sekali dan saat tutup shift, ke Download/BatangGaring, 7 file terakhir disimpan
+function autoBackup(force){
+  if(!APP||!APP.autoBackup||!users.length)return;
+  const last=+localStorage.getItem("bgcafe.autoBackup")||0;if(!force&&Date.now()-last<20*3600e3)return;
+  const {txt,name}=backupData();
+  nat("autoBackup",name,txt).then(()=>{try{localStorage.setItem("bgcafe.autoBackup",String(Date.now()))}catch(e){}autoBackupInfo()},e=>console.warn(e));
+}
+function autoBackupInfo(){const el=$("#autoBkInfo");if(!el||!APP)return;el.hidden=false;const t=+localStorage.getItem("bgcafe.autoBackup")||0;
+  el.textContent="Cadangan otomatis: setiap hari dan saat tutup shift, ke folder Download/BatangGaring (7 terakhir). Terakhir: "+(t?new Date(t).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}):"belum ada")+"."}
 function forgotScreen(){
   lockShell(`<div><b style="font-size:17px">Atur ulang PIN pemilik</b><p class="hint" style="margin-top:4px">Masukkan kode pemulihan yang dicatat saat akun pemilik dibuat.</p></div>
     <div class="field"><label for="fCode">Kode pemulihan</label><input id="fCode" autocomplete="off" placeholder="XXXX-XXXX" style="text-transform:uppercase"></div>
@@ -1095,7 +1168,7 @@ function closeShiftForm(){
     Object.assign(s,{end:new Date().toISOString(),counted:+raw,cashSales:cash,nonCash:list.reduce((a,t)=>a+t.total,0)-cash,byMethod,trxCount:list.length,
       expTotal:ex.reduce((a,x)=>a+x.amount,0),expCash:exCash,expected:s.openCash+cash-exCash-rfCash,closedBy:me.name,
       kons:konsSummary(kons.filter(k=>k.shift===s.id)),unpaid:{n:orders.length,total:orders.reduce((a,o)=>a+orderTotal(o),0)},netSales:list.reduce((a,t)=>a+t.sub,0)-s.refund.sub,hpp:list.reduce((a,t)=>a+(t.hpp||0),0)-s.refund.hppBack,usage:shiftUsage(s.id),low:bahan.filter(isLow).map(b=>`${b.name} (${fq(b.stock)} ${b.unit})`)});
-    s.diff=s.counted-s.expected;saveShifts();syncPending(false);showShiftRecap(s);
+    s.diff=s.counted-s.expected;saveShifts();syncPending(false);showShiftRecap(s);autoBackup(true);
     if(+(cfg.autoShift??1)){if(printer)printLines(shiftLines(s));else setTimeout(()=>toast("Printer belum tersambung. Ketuk Cetak struk total setelah printer disambung."),1200)}
     if(waNum(cfg.wa))window.open(waLink(waNum(cfg.wa),waText(s)),"_blank","noopener")};
 }
@@ -1663,13 +1736,22 @@ $("#clOut").onclick=()=>{cloud.session=null;clSave();fillCloud();toast("Keluar d
 setInterval(()=>cloudSync(false),30000);addEventListener("online",()=>cloudSync(false));setTimeout(()=>cloudSync(false),2500);
 
 // Cek versi baru: kalau web kasir sudah diperbarui, tampilkan tombol untuk memuat ulang
-const BUILD="2026-10-20-35";
-async function checkUpdate(){if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
+const BUILD="2026-10-26-36";
+const APK_URL="https://github.com/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/latest/download/KasirBatangGaring.apk";
+function updBar(text,go){if($("#updBar"))return;const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent=text;d.onclick=go;document.body.append(d)}
+// di aplikasi Android tampilan kasir ada di dalam APK: cek rilis APK baru di GitHub
+async function checkApk(){if(!navigator.onLine)return;
+  try{const r=await (await fetch("https://api.github.com/repos/tengkuilhamsyahti-lgtm/kasir-batang-garing/releases/latest",{cache:"no-store"})).json();
+    const n=+((String(r.tag_name).match(/^apk-(\d+)$/)||[])[1]||0),cur=+(String(JSON.parse(APP.info()).version||"").split(".")[1]||0);
+    if(n&&cur&&n>cur)updBar("Versi baru aplikasi tersedia. Ketuk untuk mengunduh",()=>APP.openUrl(APK_URL))}catch(e){}}
+async function checkUpdate(){if(APP)return checkApk();if(!navigator.onLine||!/^https:|^http:\/\/localhost/.test(location.href))return;
   try{const t=await (await fetch("index.html?cek="+Date.now(),{cache:"no-store"})).text(),m=t.match(/const BUILD="([^"]+)"/);
-    if(m&&m[1]!==BUILD&&!$("#updBar")){const d=document.createElement("button");d.id="updBar";d.className="updbar";d.textContent="Versi baru kasir tersedia. Ketuk untuk memperbarui";
-      d.onclick=async()=>{d.textContent="Memperbarui…";try{const r=await navigator.serviceWorker?.getRegistration();await r?.update();const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}location.reload()};document.body.append(d)}}catch(e){}}
-setTimeout(checkUpdate,4000);setInterval(checkUpdate,5*60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkUpdate()});
-if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+    if(m&&m[1]!==BUILD)updBar("Versi baru kasir tersedia. Ketuk untuk memperbarui",async function(){this.textContent="Memperbarui…";try{const r=await navigator.serviceWorker?.getRegistration();await r?.update();const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}location.reload()})}catch(e){}}
+setTimeout(checkUpdate,4000);setInterval(checkUpdate,APP?6*3600e3:5*60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden){checkUpdate();autoBackup(false)}});
+setTimeout(()=>{autoBackup(false);autoBackupInfo()},5000);
+// aplikasi Android menyajikan file kasir dari dalam APK, jadi service worker lama dilepas
+if(APP)navigator.serviceWorker?.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+else if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!location.hostname.endsWith("claude.ai")){navigator.serviceWorker.register("sw.js").catch(()=>{})}
 renderPos();applyRole();lockScreen();
 })();
 </script>
